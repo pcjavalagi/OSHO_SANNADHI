@@ -522,21 +522,27 @@ console.log("✅ Database Indexes Verified");
                 const files = await bucket.find({ filename }).toArray();
                 
                 if (!files || files.length === 0) return res.status(404).send('File not found');
-
-                // --- FIX: Force Browser to see this as an Image ---
-                let contentType = files[0].contentType;
-
-                // If the database doesn't have a specific type, or it's generic, 
-                // we check the filename extension or default to jpeg.
-                if (!contentType || contentType === 'application/octet-stream') {
-                    if (filename.toLowerCase().endsWith('.png')) contentType = 'image/png';
-                    else if (filename.toLowerCase().endsWith('.webp')) contentType = 'image/webp';
-                    else contentType = 'image/jpeg'; // Default to jpeg so it shows as image
-                }
-
-                res.set('Content-Type', contentType);
-                // -------------------------------------------------
                 
+                const file = files[0];
+
+                // --- STRONGER FIX ---
+                // 1. Force the Content-Type based on file extension
+                // (This overrides whatever "confused" type might be saved in the database)
+                let contentType = file.contentType || 'application/octet-stream';
+                const lowerName = filename.toLowerCase();
+
+                if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) contentType = 'image/jpeg';
+                else if (lowerName.endsWith('.png')) contentType = 'image/png';
+                else if (lowerName.endsWith('.gif')) contentType = 'image/gif';
+                else if (lowerName.endsWith('.webp')) contentType = 'image/webp';
+
+                // 2. Set the Content-Type header
+                res.set('Content-Type', contentType);
+
+                // 3. CRITICAL: Tell browser to display "inline" (not as a download or player)
+                res.set('Content-Disposition', 'inline'); 
+                // ---------------------
+
                 const downloadStream = bucket.openDownloadStreamByName(filename);
                 downloadStream.pipe(res);
                 downloadStream.on('error', () => res.sendStatus(404));
@@ -688,3 +694,4 @@ console.log("✅ Database Indexes Verified");
 
 
 run().catch(console.dir);
+
