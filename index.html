@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Osho Meditation Camp</title>
+    <link rel="icon" type="image/png" href="osho_logo.png">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="osho_style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></Script>
+    <script>
+
+        async function authFetch(url, options = {}) {
+            // Show Loader
+            const loader = document.getElementById('global-loader');
+            if (loader) loader.style.display = 'flex';
+
+            try {
+                const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+
+                if (options.body instanceof FormData) delete headers['Content-Type'];
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                const response = await fetch(url, { ...options, headers });
+
+                // ... existing error handling ...
+
+                return response;
+            } catch (error) {
+                console.error("Network Error:", error);
+                alert("Network error. Please try again.");
+                throw error; // Re-throw to stop subsequent code execution
+            } finally {
+                // Hide Loader
+                if (loader) loader.style.display = 'none';
+            }
+        }
+
+
+        // // --- HELPER: RENDER MEDIA (Image or Video) ---
+        // function renderSmartMedia(url, heightStyle = "200px", className = "") {
+        //     if (!url) return `<div class="${className}" style="height:${heightStyle}; background:#eee; display:flex; align-items:center; justify-content:center; color:#999;">No Media</div>`;
+
+        //     // YouTube detection
+        //     if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        //         const embedUrl = url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/').split('&')[0];
+        //         return `<iframe class="${className}" src="${embedUrl}" frameborder="0" allowfullscreen style="width:100%; height:${heightStyle};"></iframe>`;
+        //     }
+        //     // Generic Video detection
+        //     else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+        //         return `<video class="${className}" src="${url}" controls style="width:100%; height:${heightStyle}; object-fit:cover;"></video>`;
+        //     }
+        //     // Default to Image
+        //     // Default to Image
+        //     else {
+        //         return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:contain; background-color: #f0f0f0;" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
+        //     }
+        // }
+
+        // --- HELPER: RENDER MEDIA (Image or Video) ---
+        function renderSmartMedia(url, heightStyle = "200px", className = "") {
+            if (!url) return `<div class="${className}" style="height:${heightStyle}; background:#f9f9f9; display:flex; align-items:center; justify-content:center; color:#ccc;">No Media</div>`;
+
+            // YouTube detection
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                const embedUrl = url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/').split('&')[0];
+                return `<iframe class="${className}" src="${embedUrl}" frameborder="0" allowfullscreen style="width:100%; height:${heightStyle};"></iframe>`;
+            }
+            // Generic Video
+            else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+                return `<video class="${className}" src="${url}" controls style="width:100%; height:${heightStyle}; object-fit:cover;"></video>`;
+            }
+            // NEW: Audio Detection
+            else if (url.match(/\.(mp3|wav|m4a)$/i) || url.includes('/media/stream/')) {
+                // Simple check, might need refinement if stream URL doesn't have extension, 
+                // but for this context, we assume the user selects 'audio' in admin
+                return `<div class="${className}" style="height:${heightStyle}; background:#f1f3f4; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+                    <i class="fas fa-music" style="font-size:3rem; color:#800000; margin-bottom:10px;"></i>
+                    <audio src="${url}" controls style="width:90%;"></audio>
+                 </div>`;
+            }
+            // Default to Image
+            else {
+                return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:cover;" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
+            }
+        }
+
+        // --- MEDIA MANAGEMENT (Admin) ---
+        async function loadMedia() {
+            const media = await (await authFetch(`${API_URL}/media`)).json();
+            document.getElementById('admin-media-list').innerHTML = media.map(i => {
+                let mediaHtml = '';
+
+                // 1. Check for Video
+                if (i.type === 'video' || i.filename === 'external-url' || i.path.match(/\.(mp4|webm)$/i)) {
+                    if (i.path.includes('youtube') || i.path.includes('youtu.be')) {
+                        mediaHtml = `<div style="height:120px; overflow:hidden;">${renderSmartMedia(i.path, '120px')}</div>`;
+                    } else {
+                        mediaHtml = `<video src="${i.path}" controls style="height:120px; width:100%; object-fit:cover; border-radius:8px; margin-bottom:8px;"></video>`;
+                    }
+                }
+                // 2. Check for Audio
+                else if (i.type === 'audio' || i.path.match(/\.(mp3|wav|m4a)$/i)) {
+                    mediaHtml = `<div style="height:120px; background:#f4f4f4; display:flex; flex-direction:column; justify-content:center; align-items:center; border-radius:8px; margin-bottom:8px;">
+                            <i class="fas fa-music" style="font-size:2rem; color:#666;"></i>
+                            <small>Audio File</small>
+                         </div>`;
+                }
+                // 3. Default to Image
+                else {
+                    mediaHtml = `<img src="${i.path}" style="height:120px; width:100%; object-fit:cover; border-radius:8px; margin-bottom:8px;">`;
+                }
+
+                return `
+            <div class="admin-card list-item" style="text-align:center;">
+                ${mediaHtml}
+                <br>
+                <strong>${i.name}</strong> <span style="font-size:0.7em; background:#ddd; padding:2px 4px; border-radius:4px;">${i.type}</span><br>
+                <small>${new Date(i.uploadedAt).toLocaleDateString()}</small>
+                <div style="margin-top:8px; display:flex; gap:8px; justify-content:center;">
+                    <button class="btn btn-outline btn-sm" onclick="copyToClipboard('${i.path}')">Copy URL</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteMedia('${i._id}')">Delete</button>
+                </div>
+            </div>
+        `;
+            }).join('');
+        }
+
+        async function uploadMedia() {
+            const fileInput = document.getElementById('media-file');
+            const name = document.getElementById('media-name').value;
+            const type = document.getElementById('media-type').value;
+            const inGallery = document.getElementById('media-gallery-check').checked;
+
+            if (!fileInput.files || fileInput.files.length === 0) return alert('Select a file');
+
+            const fd = new FormData();
+            fd.append('file', fileInput.files[0]);
+            fd.append('name', name);
+            fd.append('type', type);
+            fd.append('inGallery', inGallery);
+
+            try {
+                // UPDATED: Capture response and parse JSON to see specific error messages
+                const res = await authFetch(`${API_URL}/upload-media`, { method: 'POST', body: fd });
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert('Uploaded Successfully');
+                    // Reset Forms
+                    document.getElementById('media-name').value = '';
+                    document.getElementById('media-file').value = '';
+                    document.getElementById('media-gallery-check').checked = false;
+                    loadMedia();
+                } else {
+                    // UPDATED: Show the actual error message from server
+                    alert('Upload failed: ' + (data.message || 'Unknown error'));
+                    console.error('Upload Error:', data);
+                }
+            } catch (error) {
+                console.error(error);
+                alert('An error occurred during upload. Check console for details.');
+            }
+        }
+
+        async function uploadMediaUrl() {
+            const url = document.getElementById('media-url-input').value;
+            const name = document.getElementById('media-url-name').value;
+
+            if (!url) return alert('Enter a URL');
+
+            const res = await authFetch(`${API_URL}/upload-url`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, name, type: 'video' })
+            });
+
+            if (res.ok) {
+                alert('URL Saved');
+                // Task 6: Reset Forms
+                document.getElementById('media-url-input').value = '';
+                document.getElementById('media-url-name').value = '';
+                loadMedia();
+            } else {
+                alert('Failed to save URL');
+            }
+        }
+
+        async function deleteMedia(id) {
+            if (!confirm('Delete this media file?')) return;
+            await authFetch(`${API_URL}/media/${id}`, { method: 'DELETE' });
+            loadMedia();
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => alert('Copied URL to clipboard'));
+        }
+
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+</head>
+
+<body>
+
+    <div id="global-loader"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+        <div
+            style="border: 4px solid #f3f3f3; border-top: 4px solid #800000; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;">
+        </div>
+        <p style="margin-top:10px; color:#800000; font-weight:600;">Processing...</p>
+    </div>
+    <style>
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+    <div id="splash-screen">
+        <img src="osho_logo.png" alt="Osho Logo">
+        <h2>OSHO SANNADHI</h2>
+        <p>"Be realistic: Plan for a miracle."</p>
+    </div>
+
+    <button onclick="topFunction()" id="scrollTopBtn" title="Go to top"><i class="fas fa-arrow-up"></i></button>
+
+    <div id="auth-section">
+        <div style="position: absolute; top: 20px; right: 20px;">
+            <button class="btn btn-outline btn-sm" onclick="toggleAuthMode()">Admin / User</button>
+        </div>
+
+        <div class="auth-card" id="user-auth-box">
+            <h2 style="color:var(--primary); margin-bottom:10px;">Welcome Seeker</h2>
+            <p style="margin-bottom:20px; color:#7f8c8d;">Enter the world of meditation</p>
+            <input type="text" id="u-user" placeholder="Username">
+            <input type="password" id="u-pass" placeholder="Password">
+            <button class="btn btn-primary" style="width:100%;" onclick="userLogin()">Enter Camp</button>
+            <p style="margin-top:15px; font-size:0.85rem; cursor:pointer; color:var(--primary);"
+                onclick="openRegModal()">Create Account</p>
+        </div>
+
+        <div class="auth-card" id="admin-auth-box" style="display:none;">
+            <h2 style="color:#c0392b; margin-bottom:20px;">Admin Access</h2>
+            <input type="text" id="a-user" placeholder="Admin Username">
+            <input type="password" id="a-pass" placeholder="Admin Password">
+            <button class="btn btn-danger" style="width:100%;" onclick="adminLogin()">Dashboard Login</button>
+        </div>
+    </div>
+
+    <div id="reg-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom:20px; color:var(--primary);">New Seeker Registration</h3>
+            <input type="text" id="r-user" placeholder="Username">
+            <input type="tel" id="r-phone" placeholder="Phone Number (10 digits)">
+            <input type="email" id="r-email" placeholder="Email Address">
+            <textarea id="r-addr" placeholder="Full Address" rows="2"></textarea>
+            <input type="password" id="r-pass" placeholder="Password (Min 6 chars)">
+            <input type="password" id="r-cpass" placeholder="Confirm Password">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="registerUser()">Sign Up</button>
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('reg-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-view">
+        <nav class="admin-sidebar">
+            <div style="text-align:center; margin-bottom:20px;">
+                <img src="osho_logo.png" style="width:60px; height:auto; margin-bottom:10px;">
+                <h3 style="margin:0;">Admin Panel</h3>
+            </div>
+            <div class="admin-menu">
+                <button onclick="switchAdminTab('products')" class="active" id="btn-adm-products"><i
+                        class="fas fa-box"></i> Store</button>
+                <button onclick="switchAdminTab('camp')" id="btn-adm-camp"><i class="fas fa-calendar-alt"></i> Camp
+                    Details</button>
+                <button onclick="switchAdminTab('regs')" id="btn-adm-regs"><i class="fas fa-users"></i>
+                    Registrations</button>
+                <button onclick="switchAdminTab('orders')" id="btn-adm-orders"><i class="fas fa-truck"></i>
+                    Orders</button>
+                <button onclick="switchAdminTab('history')" id="btn-adm-history"><i class="fas fa-history"></i>
+                    History</button>
+                <button onclick="switchAdminTab('sannadhi')" id="btn-adm-sannadhi"><i class="fas fa-dharmachakra"></i>
+                    Sannadhi</button>
+                <button onclick="switchAdminTab('techniques')" id="btn-adm-techniques"><i class="fas fa-spa"></i>
+                    Techniques</button>
+                <button onclick="switchAdminTab('insights')" id="btn-adm-insights"><i class="fas fa-lightbulb"></i>
+                    Insights</button>
+                <button onclick="switchAdminTab('rooms')" id="btn-adm-rooms"><i class="fas fa-bed"></i> Rooms
+                    Info</button>
+                <button onclick="switchAdminTab('movements')" id="btn-adm-movements"><i class="fas fa-video"></i> Camp
+                    Videos</button>
+                <button onclick="switchAdminTab('glimpses')" id="btn-adm-glimpses"><i class="fas fa-images"></i>
+                    Gallery</button>
+                <button onclick="switchAdminTab('media')" id="btn-adm-media"><i class="fas fa-photo-video"></i>
+                    Images/Videos</button>
+                <button onclick="switchAdminTab('recordings')" id="btn-adm-recordings"><i class="fas fa-microphone"></i>
+                    Satsang Recordings</button>
+                <button onclick="switchAdminTab('backimg')" id="btn-adm-backimg"><i class="fas fa-image"></i> Back
+                    Images</button>
+                <button onclick="switchAdminTab('messages')" id="btn-adm-messages"><i class="fas fa-envelope"></i>
+                    Messages</button>
+                <button onclick="logout()" style="color:#e74c3c; margin-top:20px;"><i class="fas fa-sign-out-alt"></i>
+                    Logout</button>
+            </div>
+        </nav>
+
+        <div class="admin-main">
+            <div id="adm-tab-products">
+                <div class="admin-section-head">Manage Products <button class="refresh-btn" onclick="loadProducts()"><i
+                            class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add New Product</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <select id="new-p-type">
+                            <option value="">Type</option>
+                            <option value="Clothes">Clothes</option>
+                            <option value="Accessories">Accessories</option>
+                            <option value="Books">Books</option>
+                            <option value="CD/Music">CD/Music</option>
+                            <option value="Others">Others</option>
+                        </select>
+                        <select id="new-p-size">
+                            <option value="">Size (Opt)</option>
+                            <option value="S">S</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="XL">XL</option>
+                        </select>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                        <input id="new-p-name" placeholder="Name">
+                        <input id="new-p-price" type="number" placeholder="₹ Price">
+                        <input id="new-p-stock" type="number" placeholder="Qty">
+                    </div>
+                    <input id="new-p-img" placeholder="Image URL">
+
+                    <div class="admin-checkbox-container">
+                        <input type="checkbox" id="new-p-latest">
+                        <label for="new-p-latest"><i class="fas fa-star" style="color:#f39c12; margin-right:5px;"></i>
+                            Latest Release</label>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="addProduct()">Add Product</button>
+                </div>
+                <input type="text" class="search-bar" placeholder="Search Products..."
+                    onkeyup="filterList(this, 'admin-prod-list')">
+                <div id="admin-prod-list" class="grid-store grid"></div>
+            </div>
+
+            <div id="adm-tab-camp" style="display:none;">
+                <div class="admin-section-head">Camp Information</div>
+                <div class="admin-card">
+
+                    <div class="admin-stat-box">
+                        <div style="text-align:center; flex:1;">
+                            <div style="color:#7f8c8d; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">
+                                Registrations Done</div>
+                            <div class="stat-number" id="adm-reg-count">0</div>
+                        </div>
+                        <div style="border-left:2px solid #ffe0b2; height:60px;"></div>
+                        <div style="flex:1.5;">
+                            <label
+                                style="font-weight:600; color:var(--primary); margin-bottom:5px; display:block;">Total
+                                Seats Available</label>
+                            <input id="camp-total-seats" type="number" placeholder="Enter Capacity (e.g. 500)"
+                                style="margin-bottom:0; font-size:1.1rem; border-color:var(--primary);">
+                        </div>
+                    </div>
+                    <h4>Update Camp Info</h4>
+                    <input id="camp-title" placeholder="Camp Title">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <input id="camp-from" placeholder="From Date">
+                        <input id="camp-to" placeholder="To Date">
+                    </div>
+                    <textarea id="camp-loc" placeholder="Location"></textarea>
+
+                    <h5 style="margin:10px 0; color:var(--text-light);">Contact Details</h5>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <input id="camp-contact1-name" placeholder="Contact Person 1 Name">
+                        <input id="camp-contact1-phone" placeholder="Phone Number 1">
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <input id="camp-contact2-name" placeholder="Contact Person 2 Name">
+                        <input id="camp-contact2-phone" placeholder="Phone Number 2">
+                    </div>
+
+                    <div style="display:flex; gap:15px; margin-top:15px;">
+                        <button class="btn btn-primary" style="flex:1" onclick="updateCampDetails()">Update
+                            Details</button>
+                        <button class="btn btn-danger" style="flex:1" onclick="resetCampRegistrations()">Reset
+                            Registrations</button>
+                    </div>
+                    <p style="font-size:0.8rem; color:#7f8c8d; margin-top:10px;">* "Reset Registrations" will delete all
+                        current seeker registrations for a fresh start.</p>
+                </div>
+            </div>
+
+            <div id="adm-tab-rooms" style="display:none;">
+                <div class="admin-section-head">Rooms Info <button class="refresh-btn" onclick="loadRoomsAdmin()"><i
+                            class="fas fa-sync-alt"></i></button></div>
+
+                <div class="admin-card">
+                    <h4>Add New Room / Area</h4>
+                    <div style="display:grid; grid-template-columns: 2fr 1fr auto; gap:10px; align-items:center;">
+                        <input id="new-room-name" placeholder="Room / Area Name" style="margin-bottom:0;">
+                        <input id="new-room-beds" type="number" placeholder="No. of Beds" style="margin-bottom:0;">
+                        <button class="btn btn-primary" onclick="addRoom()">Add Room</button>
+                    </div>
+                </div>
+
+                <div id="admin-rooms-list" class="grid-2 grid"></div>
+            </div>
+
+            <div id="adm-tab-regs" style="display:none;">
+                <div class="admin-section-head">Camp Registrations <button class="refresh-btn"
+                        onclick="loadRegistrations()"><i class="fas fa-sync-alt"></i></button></div>
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap: wrap; gap:10px;">
+                    <input type="text" class="search-bar" style="margin-bottom:0;" placeholder="Search Registrations..."
+                        onkeyup="filterList(this, 'admin-regs-list')">
+                    <button class="btn btn-primary" onclick="downloadRegPDF()"><i class="fas fa-file-pdf"></i> Download
+                        Report</button>
+                </div>
+                <div id="admin-regs-list" class="grid-3 grid"></div>
+            </div>
+
+            <div id="adm-tab-orders" style="display:none;">
+                <div class="admin-section-head">Active Orders <button class="refresh-btn"
+                        onclick="loadOrdersAdmin(false)"><i class="fas fa-sync-alt"></i></button></div>
+
+                <div class="admin-card"
+                    style="padding:15px; margin-bottom:20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <span style="font-weight:600;">Download Report:</span>
+                    <select id="rep-month" style="width:auto; margin-bottom:0; padding:8px;">
+                        <option value="All">All Months</option>
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                    <select id="rep-year" style="width:auto; margin-bottom:0; padding:8px;">
+                    </select>
+                    <script>
+                        // Immediate execution to populate years dynamically
+                        (function populateYears() {
+                            const yearSelect = document.getElementById('rep-year');
+                            const currentYear = new Date().getFullYear();
+                            // Add Current Year and Previous Year
+                            yearSelect.innerHTML = `
+            <option value="${currentYear}">${currentYear}</option>
+            <option value="${currentYear - 1}">${currentYear - 1}</option>
+        `;
+                        })();
+                    </script>
+                    <button class="btn btn-success btn-sm" onclick="downloadOrderReport()"><i
+                            class="fas fa-download"></i> Download PDF</button>
+                </div>
+
+                <input type="text" class="search-bar" placeholder="Search Active Orders..."
+                    onkeyup="filterList(this, 'admin-orders-list')">
+                <div id="admin-orders-list" class="grid-2 grid"></div>
+            </div>
+
+            <div id="adm-tab-history" style="display:none;">
+                <div class="admin-section-head">Order History <button class="refresh-btn"
+                        onclick="loadOrdersAdmin(true)"><i class="fas fa-sync-alt"></i></button></div>
+                <input type="text" class="search-bar" placeholder="Search History..."
+                    onkeyup="filterList(this, 'admin-hist-list')">
+                <div id="admin-hist-list" class="grid-2 grid"></div>
+            </div>
+
+            <div id="adm-tab-sannadhi" style="display:none;">
+                <div class="admin-section-head">Osho Sannadhi Management <button class="refresh-btn"
+                        onclick="loadGenericAdmin('sannadhi')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add Sannadhi Details</h4>
+                    <input id="san-title" placeholder="Area / Title Name">
+                    <textarea id="san-desc" placeholder="Brief Description"></textarea>
+                    <input id="san-img" placeholder="Image/Video URL (or YouTube Link)">
+                    <button class="btn btn-primary" onclick="addSannadhi()">Add Details</button>
+                </div>
+                <div id="admin-san-list"></div>
+            </div>
+
+            <div id="adm-tab-insights" style="display:none;">
+                <div class="admin-section-head">Guru Insights <button class="refresh-btn"
+                        onclick="loadGenericAdmin('insights')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add Insight</h4>
+                    <input id="new-i-title" placeholder="Title">
+                    <textarea id="new-i-desc" placeholder="Desc"></textarea>
+                    <input id="new-i-img" placeholder="Img/Video URL">
+                    <button class="btn btn-primary" onclick="addInsight()">Add Insight</button>
+                </div>
+                <div id="admin-insight-list"></div>
+            </div>
+
+            <div id="adm-tab-techniques" style="display:none;">
+                <div class="admin-section-head">Meditation Techniques <button class="refresh-btn"
+                        onclick="loadGenericAdmin('techniques')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add Technique</h4>
+                    <input id="new-t-title" placeholder="Title">
+                    <textarea id="new-t-desc" placeholder="Desc"></textarea>
+                    <input id="new-t-img" placeholder="Img/Video URL">
+                    <button class="btn btn-primary" onclick="addTechnique()">Add Technique</button>
+                </div>
+                <div id="admin-tech-list" class="grid-3 grid"></div>
+            </div>
+
+            <div id="adm-tab-movements" style="display:none;">
+                <div class="admin-section-head">Camp Videos (Movements) <button class="refresh-btn"
+                        onclick="loadGenericAdmin('movements')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add Camp Video</h4>
+                    <input id="new-m-title" placeholder="Video Title">
+                    <textarea id="new-m-desc" placeholder="Description"></textarea>
+                    <input id="new-m-vid" placeholder="Video URL (YouTube link or Uploaded File Path)">
+                    <button class="btn btn-primary" onclick="addMovement()">Add Video</button>
+                </div>
+                <div id="admin-movement-list" class="grid-2 grid"></div>
+            </div>
+
+            <div id="adm-tab-glimpses" style="display:none;">
+                <div class="admin-section-head">Gallery <button class="refresh-btn"
+                        onclick="loadGenericAdmin('glimpses')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card"><input id="new-g-img" placeholder="Img URL"><button class="btn btn-primary"
+                        onclick="addGlimpse()">Add</button></div>
+                <div id="admin-glimpse-list" class="grid-store grid"></div>
+            </div>
+
+            <div id="adm-tab-media" style="display:none;">
+                <div class="admin-section-head">Images & Videos Upload <button class="refresh-btn"
+                        onclick="loadMedia()"><i class="fas fa-sync-alt"></i></button></div>
+
+                <div class="grid grid-2">
+                    <div class="admin-card">
+                        <h4>Upload File</h4>
+                        <div style="display:flex; gap:10px; margin-bottom:10px;">
+                            <input id="media-name" placeholder="Name (optional)" style="margin-bottom:0;">
+                            <select id="media-type" style="width:150px; margin-bottom:0;">
+                                <option value="image">Image</option>
+                                <option value="video">Video</option>
+                                <option value="audio">Audio</option>
+                            </select>
+                        </div>
+                        <input type="file" id="media-file" accept="image/*,video/*,audio/*">
+
+                        <div class="admin-checkbox-container" style="margin-top:15px;">
+                            <input type="checkbox" id="media-gallery-check">
+                            <label for="media-gallery-check">Include in Gallery Page</label>
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button class="btn btn-primary" onclick="uploadMedia()">Upload File</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <h4>Upload from URL (YouTube/Ext)</h4>
+                        <input id="media-url-name" placeholder="Name (optional)">
+                        <input id="media-url-input" placeholder="Paste YouTube or Image URL">
+                        <button class="btn btn-primary" onclick="uploadMediaUrl()">Save URL</button>
+                    </div>
+                </div>
+
+                <p style="font-size:0.85rem; margin:10px 0; color:#666; text-align:center;">Use the "Copy URL" button on
+                    uploaded items to paste them into other sections.</p>
+                <div id="admin-media-list" class="grid-store grid"></div>
+            </div>
+
+            <div id="adm-tab-backimg" style="display:none;">
+                <div class="admin-section-head">Hero Background Images <button class="refresh-btn"
+                        onclick="loadGenericAdmin('backimg')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card"><input id="new-hero-img" placeholder="Image URL"><button class="btn btn-primary"
+                        onclick="addHeroImage()">Add</button></div>
+                <div id="admin-hero-list" class="grid-store grid"></div>
+            </div>
+
+            <div id="adm-tab-messages" style="display:none;">
+                <div class="admin-section-head">User Messages <button class="refresh-btn" onclick="loadMessages()"><i
+                            class="fas fa-sync-alt"></i></button></div>
+                <input type="text" class="search-bar" placeholder="Search Messages..."
+                    onkeyup="filterList(this, 'admin-msg-list')">
+                <div id="admin-msg-list"></div>
+            </div>
+            <div id="adm-tab-recordings" style="display:none;">
+                <div class="admin-section-head">Satsang Recordings <button class="refresh-btn"
+                        onclick="loadGenericAdmin('recordings')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add Recording</h4>
+                    <input id="new-rec-title" placeholder="Title">
+                    <textarea id="new-rec-desc" placeholder="Short Description"></textarea>
+                    <input id="new-rec-link" placeholder="Audio Link (Upload in Media tab and paste URL here)">
+                    <button class="btn btn-primary" onclick="addRecording()">Add Recording</button>
+                </div>
+                <div id="admin-rec-list" class="grid-2 grid"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="user-view">
+        <nav class="user-nav">
+            <div style="display:flex; align-items:center; cursor:pointer;" onclick="switchUserPage('home')">
+                <img src="osho_logo.png" style="width:50px; height:auto; margin-right:10px;">
+                <div style="font-weight:700; font-size:1.5rem; color:var(--primary); font-family:var(--font-serif);">
+                    OSHO SANNADHI</div>
+            </div>
+            <div class="nav-links">
+                <button onclick="switchUserPage('home')" id="nav-home" class="active-nav">Home</button>
+                <button onclick="switchUserPage('recordings')" id="nav-recordings">Recordings</button>
+                <button onclick="switchUserPage('gallery')" id="nav-gallery">Gallery</button>
+                <button onclick="switchUserPage('store')" id="nav-store">Store</button>
+                <button onclick="switchUserPage('regs')" id="nav-regs">Registrations</button>
+                <button onclick="switchUserPage('orders')" id="nav-orders">Orders</button>
+                <button onclick="switchUserPage('profile')" id="nav-profile">Profile</button>
+                <button onclick="toggleCart()">Cart (<span id="cart-badge">0</span>)</button>
+                <button onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </nav>
+
+        <div id="view-home" class="user-page">
+            <header class="hero">
+                <div id="hero-slider-container"></div>
+                <div class="hero-overlay"></div>
+                <div class="hero-content">
+                    <h1>OSHO MEDITATION CAMP</h1>
+                    <p>"Be realistic: Plan for a miracle."</p>
+                </div>
+                <div class="slider-controls">
+                    <button class="slider-btn" onclick="prevSlide()"><i class="fas fa-chevron-left"></i></button>
+                    <button class="slider-btn" onclick="nextSlide()"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </header>
+
+            <div class="container" style="position:relative;">
+
+                <div class="camp-info-card">
+                    <div class="reg-status-badge">
+                        <small>Seats Filled</small>
+                        <div class="reg-count-display">
+                            <span id="u-reg-count">0</span> / <span id="u-total-seats">0</span>
+                        </div>
+                    </div>
+                    <h2 id="u-camp-title" style="color:var(--primary); margin-bottom:10px;">Upcoming Camp</h2>
+                    <div class="camp-grid">
+                        <div class="camp-item"><i class="fas fa-calendar"></i> <span id="u-camp-from"></span></div>
+                        <div class="camp-item"><i class="fas fa-calendar-check"></i> <span id="u-camp-to"></span></div>
+                        <div class="camp-item"><i class="fas fa-map-marker-alt"></i> <span id="u-camp-loc"></span></div>
+
+                        <div class="camp-item" style="grid-column: 1 / -1;">
+                            <div style="display:flex; justify-content: space-around; flex-wrap:wrap; gap:10px;">
+                                <span><i class="fas fa-phone"></i> <span id="u-camp-contact1"></span></span>
+                                <span style="border-left:2px solid #ddd; padding-left:15px;"><i
+                                        class="fas fa-phone"></i> <span id="u-camp-contact2"></span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary"
+                        style="padding: 15px 40px; font-size:1.1rem; position:relative; z-index:10;"
+                        onclick="openCampRegModal()">Register for Camp</button>
+                </div>
+
+
+                <!-- About Sannadhi Section we can customize directly in user-view home page -->
+                <div class="about-sannadhi-section">
+                    <h2 class="section-header">About Sannadhi</h2>
+
+                    <div class="alternating-item" style="display:block; text-align:center;">
+                        <div class="video-container sannadhi-video-wrapper">
+                            <video src="about_san_vdo.mp4" controls preload="metadata" playsinline></video>
+                        </div>
+
+
+                        <h3 style="color:var(--primary); margin-bottom:15px;">OSHO SANNADHI - A Sacred Space for
+                            Transformation</h3>
+                        <p style="text-align:justify; max-width:800px; margin:0 auto; color:#555;">
+                            Osho Sannidhi is place to be in Silence. A place to dance or to be passive, devote to other
+                            or to oneself, serve or get served, give or receive, understand or misunderstand, laugh or
+                            cry, to love other or oneself, to care or get cared, to let go or to go through, to relax or
+                            to act, to sing or to listen, to express cathartic or gibberish. Each one or all of these
+                            are the tools of meditation, essentially aimed at for the purpose of playfully arriving at
+                            the state of Just Be, to available to oneself, to have the company of one’s own. To be Here
+                            in the Now. So that, to rise from suppressive life to expressive, from expressive to
+                            witnessing, from witnessing consciousness to pure consciousness and awareness so that the
+                            blossoming of tremendous insight, intelligence into the beauty of life. So that the
+                            realization-‘I am not the doer; God/ existence is all-doer.<br>
+                            <br>
+                            Osho Sannidhi is a place that belong to each one which has the body of any shape, may be
+                            having two,four or several legs, may be moving or unmoving,walking or flying, jumping or
+                            crawling, dwelling in space or in the air, fire or water, inside or on the earth and called
+                            by any name. Osho Sannidhi belongs to all those minds which may accept or dissent, have
+                            faith in anything or nothing, believe or question or no-mind. Osho Sannidhi belongs to those
+                            hearts which love to learn love, shares to learn sharing, lives to learn living., does
+                            anything and everything to keep on learning.<br>
+                        </p>
+                    </div>
+                </div>
+
+                <hr class="styled-hr">
+
+                <h2 class="section-header">Meditation Techniques</h2>
+                <div id="user-techniques-grid" class="grid grid-2"></div>
+
+                <hr class="styled-hr">
+
+                <h2 class="section-header">Osho Sannadhi Areas</h2>
+                <div id="user-sannadhi-list"></div>
+
+                <hr class="styled-hr">
+
+                <h2 class="section-header">Guru Insights</h2>
+                <div id="user-insights-container"></div>
+
+                <hr class="styled-hr">
+
+                <h2 class="section-header">Camp Movements</h2>
+                <div id="user-movements-grid" class="grid grid-2"></div>
+
+                <hr class="styled-hr">
+
+                <h2 class="section-header">Glimpses of Camp</h2>
+                <div style="overflow:hidden; white-space:nowrap; padding:20px 0;">
+                    <div id="marquee-track" style="display:inline-block; animation:marquee 7s linear infinite;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-store" class="user-page" style="display:none;">
+            <div class="container">
+                <div id="latest-release-section" class="latest-section" style="display:none;">
+                    <h2 class="section-header" style="font-size:2rem; margin-bottom:1.5rem;">Latest Releases</h2>
+                    <p style="text-align:center; color:#7f8c8d; margin-bottom:20px;">Explore our newest arrivals curated
+                        just for you.</p>
+                    <div id="user-latest-grid" class="grid grid-store">
+                    </div>
+                </div>
+
+                <h2 class="section-header">Camp Store</h2>
+                <div class="store-filter-container">
+                    <button class="filter-btn active" onclick="filterStore('All', this)">All</button>
+                    <button class="filter-btn" onclick="filterStore('Clothes', this)">Clothes</button>
+                    <button class="filter-btn" onclick="filterStore('Accessories', this)">Accessories</button>
+                    <button class="filter-btn" onclick="filterStore('Books', this)">Books</button>
+                    <button class="filter-btn" onclick="filterStore('CD/Music', this)">Music</button>
+                    <button class="filter-btn" onclick="filterStore('Others', this)">Others</button>
+                </div>
+                <input type="text" class="search-bar" style="width:100%" placeholder="Search Products by name..."
+                    onkeyup="filterStoreSearch(this.value)">
+                <div class="grid grid-store" id="user-product-grid"></div>
+            </div>
+        </div>
+
+        <div id="view-orders" class="user-page" style="display:none;">
+            <div class="container">
+                <h2 class="section-header">My Orders <button class="refresh-btn" onclick="loadOrders()"><i
+                            class="fas fa-sync-alt"></i></button></h2>
+                <div id="user-orders-list" class="grid grid-2"></div>
+            </div>
+        </div>
+
+        <div id="view-gallery" class="user-page" style="display:none;">
+            <div class="container">
+                <h2 class="section-header">Camp Gallery <button class="refresh-btn" onclick="loadGallery()"><i
+                            class="fas fa-sync-alt"></i></button></h2>
+                <p style="text-align:center; color:#7f8c8d; margin-bottom:30px;">
+                    "When the flower blossoms, the fragrance spreads." - Osho
+                </p>
+                <div id="user-gallery-grid" class="gallery-grid">
+                </div>
+            </div>
+        </div>
+
+        <div id="view-recordings" class="user-page" style="display:none;">
+            <div class="container">
+                <h2 class="section-header">Satsang Recordings <button class="refresh-btn"
+                        onclick="loadRecordingsUser()"><i class="fas fa-sync-alt"></i></button></h2>
+
+                <div class="warning-note">
+                    <i class="fas fa-clock"></i>
+                    <strong>Note:</strong> These recordings will be automatically deleted after 7 days. Please download
+                    them if you wish to keep them.
+                </div>
+
+                <div id="user-rec-grid" class="grid grid-2"></div>
+            </div>
+        </div>
+
+        <div id="view-regs" class="user-page" style="display:none;">
+            <div class="container">
+                <h2 class="section-header">My Registrations <button class="refresh-btn"
+                        onclick="loadMyRegistrations()"><i class="fas fa-sync-alt"></i></button></h2>
+                <p style="text-align:center; color:#777; margin-bottom:30px;">Manage your upcoming camp participations.
+                </p>
+                <div id="user-my-regs-list" class="grid grid-2"></div>
+            </div>
+        </div>
+
+        <div id="view-profile" class="user-page" style="display:none;">
+            <div class="container" style="max-width:600px;">
+                <h2 class="section-header">My Profile</h2>
+                <div class="tech-card" style="padding:30px;">
+                    <label>Username</label><input id="p-username" disabled>
+                    <label>Phone</label><input id="p-phone">
+                    <label>Email</label><input id="p-email">
+                    <label>Address</label><textarea id="p-addr"></textarea>
+                    <label>New Password</label><input type="password" id="p-pass">
+                    <button class="btn btn-primary" onclick="updateProfile()" style="width:100%;">Update</button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="site-footer">
+            <div class="container footer-grid">
+                <div>
+                    <h3 style="color:white; margin-bottom:15px;">Osho Meditation Camp</h3>
+                </div>
+                <div>
+                    <h4 style="color:orange; margin-bottom:15px;">Connect With Us</h4>
+                    <div class="footer-socials">
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                    <a href="https://www.google.com/maps/search/?api=1&query=Osho+Sannadhi+Mysore" target="_blank"
+                        style="text-decoration:none; text-align:center;">
+                        <i class="fas fa-map-marked-alt"
+                            style="font-size: 3rem; color:var(--primary); animation: bounce 2s infinite;"></i>
+                    </a>
+                    <br>
+                    <p>Osho sannidhi, Uttanahalli, via hosahundi, Mysore taluk, karnataka</p>
+                    <br>
+                    <button class="contact-trigger" onclick="openContactModal()"><i class="fas fa-envelope"></i> Contact
+                        Us</button>
+                </div>
+            </div>
+            <div
+                style="text-align:center; margin-top:15px; border-top:1px solid #444; padding-top:10px; font-size:0.8rem; color:#888;">
+                © 2025 Osho Camp. All Rights Reserved.
+            </div>
+        </footer>
+    </div>
+
+    <div id="camp-reg-modal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <h3 style="color:var(--primary); text-align:center; margin-bottom:15px;">Register for Camp</h3>
+
+            <div id="reg-full-view" style="display:none; text-align:center; padding:20px;">
+                <div style="font-size: 3rem; color: #e74c3c; margin-bottom: 15px;"><i
+                        class="fas fa-exclamation-circle"></i></div>
+                <h4 style="color: #c0392b; margin-bottom: 15px; line-height: 1.5;">No further registrations can be
+                    accepted.</h4>
+                <p style="color: #666; margin-bottom: 20px;">If you still want to register, please contact the persons
+                    mentioned below.</p>
+                <div
+                    style="background:#f9f9f9; padding:15px; border-radius:10px; text-align: left; font-size: 0.9rem; margin-bottom: 20px;">
+                    <p><strong>Maneesha:</strong> +91 94802 78144</p>
+                    <p><strong>Jayaram:</strong> +91 91643 85551</p>
+                </div>
+                <button class="btn btn-outline" style="width:100%" onclick="closeModal('camp-reg-modal')">Close</button>
+            </div>
+
+            <div id="reg-step-1">
+                <p style="text-align:center; font-size:0.9rem; margin-bottom:20px; color:#666;">How many people are you
+                    registering?</p>
+                <input type="number" id="reg-count" min="1" value="1" placeholder="Number of persons">
+                <button class="btn btn-primary" style="width:100%;" onclick="generateRegForms()">Next</button>
+            </div>
+
+            <div id="reg-step-2" style="display:none;">
+                <p style="text-align:center; font-size:0.9rem; margin-bottom:15px; color:#666;">Enter details for each
+                    person</p>
+                <div id="reg-forms-container" style="max-height:400px; overflow-y:auto; padding:5px;"></div>
+                <label style="color:var(--primary); font-weight:600; margin-top:15px; display:block;">Type "JAI OSHO" to
+                    confirm</label>
+                <input type="text" id="cr-confirm" placeholder="JAI OSHO">
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" style="flex:1" onclick="submitCampReg()">Register All</button>
+                    <button class="btn btn-danger" style="flex:1" onclick="closeModal('camp-reg-modal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-reg-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color:var(--primary); margin-bottom:20px;">Update Registration</h3>
+            <input type="hidden" id="er-id">
+            <label>Name</label>
+            <input id="er-name" placeholder="Name">
+            <label>Phone</label>
+            <input id="er-phone" placeholder="Phone">
+            <label>Experience</label>
+            <select id="er-type">
+                <option value="First Timer">First Timer</option>
+                <option value="Repeater">Repeater</option>
+            </select>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="saveRegUpdate()">Update</button>
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('edit-reg-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="contact-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color:var(--primary); margin-bottom:20px; text-align:center;">Contact Us</h3>
+            <div style="margin-bottom:20px; background:#f9f9f9; padding:15px; border-radius:10px; font-size:0.9rem;">
+                <p><strong>Maneesha:</strong> +91 94802 78144</p>
+                <p><strong>Jayaram:</strong> +91 91643 85551</p>
+                <p><i class="fas fa-envelope"></i> allamapriya@gmail.com</p>
+            </div>
+            <h4 style="margin-bottom:10px;">Send a Message</h4>
+            <input id="cm-name" placeholder="Your Name (Phone number optional)">
+            <textarea id="cm-msg" placeholder="Write your message here..." rows="3"></textarea>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="sendMessage()">Send</button>
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('contact-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="msg-view-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color:var(--primary);">Message Details</h3>
+            <p style="color:#777; font-size:0.9rem; margin-bottom:10px;" id="mvm-date"></p>
+            <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:20px;">
+                <strong id="mvm-sender"></strong>
+                <hr style="margin:10px 0; border:0; border-top:1px solid #ddd;">
+                <p id="mvm-content" style="white-space: pre-wrap;"></p>
+            </div>
+            <button class="btn btn-outline" onclick="closeModal('msg-view-modal')" style="width:100%;">Close</button>
+        </div>
+    </div>
+
+    <div id="cart-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3>Your Cart</h3>
+            <button class="btn btn-outline btn-sm" onclick="toggleCart()">X</button>
+        </div>
+        <div id="cart-items" style="flex:1; overflow-y:auto; margin-bottom:20px;"></div>
+        <div style="border-top:1px solid #eee; padding-top:15px;">
+            <h3>Total: ₹<span id="cart-total">0</span></h3>
+            <button class="btn btn-primary" style="width:100%; margin-top:10px;"
+                onclick="initCheckout()">Checkout</button>
+        </div>
+    </div>
+
+    <div id="checkout-modal" class="modal">
+        <div class="modal-content">
+            <h3>Confirm Order</h3>
+            <p style="background:#fff3cd; padding:10px; border-radius:5px; margin:15px 0; font-size:0.9rem;">
+                Total: ₹<span id="co-total"></span><br>You can place the order now. We will keep the items
+                reserved for you. Once you attend the camp, you can make the payment and collect the items.
+            </p>
+            <input type="password" id="co-pass" placeholder="Enter Password to Confirm">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="confirmOrder()">Place Order</button>
+                <button class="btn btn-danger" style="flex:1" onclick="closeModal('checkout-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox-modal" onclick="closeLightbox(event)">
+        <span class="lightbox-close-btn" onclick="closeLightbox(event, true)">&times;</span>
+        <img id="lightbox-content" src="" alt="Gallery Preview">
+    </div>
+
+    <div id="assign-room-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color:var(--primary); margin-bottom:15px;">Assign Room</h3>
+            <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px;">
+                <p><strong>Seeker:</strong> <span id="ar-name"></span></p>
+                <p><strong>Phone:</strong> <span id="ar-phone"></span></p>
+                <p><strong>Requested:</strong> <span id="ar-req-type"></span></p>
+            </div>
+            <input type="hidden" id="ar-reg-id">
+            <label style="font-weight:600;">Select Room (Available Beds)</label>
+            <select id="ar-room-select" style="font-size:1rem; padding:10px;"></select>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitRoomAssignment()">Assign Room</button>
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('assign-room-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="generic-view-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="gvm-title"
+                style="color:var(--primary); margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:10px;">
+            </h3>
+            <div id="gvm-media"
+                style="width:100%; margin-bottom:15px; border-radius:8px; overflow:hidden; display:flex; justify-content:center; background:#000;">
+            </div>
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; max-height:200px; overflow-y:auto;">
+                <p id="gvm-desc" style="white-space: pre-wrap; color:#555; text-align:justify;"></p>
+            </div>
+            <button class="btn btn-outline" onclick="closeModal('generic-view-modal')"
+                style="width:100%; margin-top:20px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let cart = [], currentUser = null, cachedOrders = [], heroImages = [], currentSlide = 0, slideInterval, cachedRegs = [], cachedCamp = {};
+
+        let cachedProducts = [];
+        let currentFilter = 'All';
+        let myRegistrations = [];
+        let adminDataCache = [];
+
+        // Task 4: Scroll to Top Logic
+        window.onscroll = function () { scrollFunction() };
+        function scrollFunction() {
+            const btn = document.getElementById("scrollTopBtn");
+            if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+                btn.style.display = "block";
+            } else {
+                btn.style.display = "none";
+            }
+        }
+        function topFunction() {
+            document.body.scrollTop = 0; // For Safari
+            document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+        }
+
+        window.onload = () => { setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('auth-section').style.display = 'flex'; }, 3000); };
+
+        function toggleAuthMode() {
+            const u = document.getElementById('user-auth-box'), a = document.getElementById('admin-auth-box');
+            if (u.style.display === 'none') { u.style.display = 'block'; a.style.display = 'none'; } else { u.style.display = 'none'; a.style.display = 'block'; }
+        }
+        function openRegModal() { document.getElementById('reg-modal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openContactModal() {
+            if (currentUser) document.getElementById('cm-name').value = currentUser.username;
+            document.getElementById('contact-modal').style.display = 'flex';
+        }
+
+        /* --- AUTH --- */
+        async function registerUser() {
+            const username = document.getElementById('r-user').value.trim();
+            const phone = document.getElementById('r-phone').value.trim();
+            const email = document.getElementById('r-email').value.trim();
+            const address = document.getElementById('r-addr').value.trim();
+            const password = document.getElementById('r-pass').value;
+            const cpass = document.getElementById('r-cpass').value;
+
+            // VALIDATION FIX: Added explicit returns to stop execution
+            if (!username || !phone || !password) {
+                alert("Please fill all required fields");
+                return;
+            }
+            if (!/^\d{10}$/.test(phone)) {
+                alert("Phone number must be exactly 10 digits.");
+                return;
+            }
+            if (password.length < 6) {
+                alert("Password must be at least 6 characters.");
+                return;
+            }
+            if (password !== cpass) {
+                alert("Passwords mismatch");
+                return;
+            }
+
+            const res = await authFetch(`${API_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, phone, email, address, password })
+            });
+
+            const data = await res.json(); // Capture response to show specific error
+            alert(data.message);
+            if (res.ok) closeModal('reg-modal');
+        }
+
+        // Replace the existing userLogin()
+        async function userLogin() {
+            const res = await authFetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: document.getElementById('u-user').value, password: document.getElementById('u-pass').value })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = { username: data.username, _id: data.userId };
+                localStorage.setItem('userToken', data.token); // <--- SAVE TOKEN
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('user-view').style.display = 'flex';
+                switchUserPage('home');
+            }
+            else alert(data.message);
+        }
+
+        // Replace the existing adminLogin()
+        async function adminLogin() {
+            const username = document.getElementById('a-user').value;
+            const password = document.getElementById('a-pass').value;
+
+            // Send credentials to backend instead of checking them here
+            const res = await authFetch(`${API_URL}/admin-login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('adminToken', data.token); // <--- SAVE ADMIN TOKEN
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('admin-view').style.display = 'flex';
+                switchAdminTab('products');
+            } else {
+                alert("Invalid Admin Credentials");
+            }
+        }
+
+        // Update logout to clear tokens
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        /* --- SLIDER --- */
+        async function loadHeroImages() {
+            const res = await authFetch(`${API_URL}/hero-images`);
+            heroImages = await res.json();
+            if (heroImages.length === 0) heroImages = [{ img: 'https://images.unsplash.com/photo-1596700810368-7c8702c2865c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80' }];
+            const container = document.getElementById('hero-slider-container');
+            container.innerHTML = heroImages.map((h, i) => `<div class="hero-slide ${i === 0 ? 'active' : ''}" style="background-image:url('${h.img}')"></div>`).join('');
+            currentSlide = 0;
+            if (slideInterval) clearInterval(slideInterval);
+            slideInterval = setInterval(nextSlide, 3000);
+        }
+        function showSlide(index) {
+            const slides = document.querySelectorAll('.hero-slide');
+            slides.forEach((s, i) => s.classList.toggle('active', i === index));
+            currentSlide = index;
+        }
+        function nextSlide() { showSlide((currentSlide + 1) % heroImages.length); }
+        function prevSlide() { showSlide((currentSlide - 1 + heroImages.length) % heroImages.length); }
+
+        /* --- USER NAVIGATION & CONTENT --- */
+        async function switchUserPage(page) {
+            document.querySelectorAll('.user-page').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active-nav'));
+
+            // Handle element existence safely
+            const viewEl = document.getElementById(`view-${page}`);
+            if (viewEl) viewEl.style.display = 'block';
+
+            const navEl = document.getElementById(`nav-${page}`);
+            if (navEl) navEl.classList.add('active-nav');
+
+            window.scrollTo(0, 0);
+
+            if (page === 'home') { loadHome(); loadHeroImages(); }
+            if (page === 'store') { loadStore(); loadLatestReleases(); }
+            if (page === 'orders') { loadOrders(); }
+            if (page === 'regs') loadMyRegistrations();
+            if (page === 'profile') loadProfile();
+            if (page === 'gallery') loadGallery();
+            if (page === 'recordings') loadRecordingsUser();
+        }
+
+        // 4. ADD NEW Function: addRecording
+        async function addRecording() {
+            const body = {
+                title: document.getElementById('new-rec-title').value,
+                desc: document.getElementById('new-rec-desc').value,
+                link: document.getElementById('new-rec-link').value
+            };
+            if (!body.title || !body.link) return alert("Title and Link are required");
+
+            await authFetch(`${API_URL}/recordings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            // Reset form
+            document.getElementById('new-rec-title').value = '';
+            document.getElementById('new-rec-desc').value = '';
+            document.getElementById('new-rec-link').value = '';
+
+            loadGenericAdmin('recordings');
+        }
+
+        // 5. ADD NEW Function: loadRecordingsUser
+        async function loadRecordingsUser() {
+            const list = await (await authFetch(`${API_URL}/recordings`)).json();
+            const grid = document.getElementById('user-rec-grid');
+
+            if (list.length === 0) {
+                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">No recordings available at the moment.</p>';
+                return;
+            }
+
+            grid.innerHTML = list.map(r => `
+        <div class="tech-card">
+            <div style="background:#f8f9fa; padding:20px; display:flex; justify-content:center; align-items:center; border-bottom:1px solid #eee;">
+                <i class="fas fa-headphones-alt" style="font-size:4rem; color:var(--primary);"></i>
+            </div>
+            <div class="card-body">
+                <h4 style="margin-bottom:5px;">${r.title}</h4>
+                <small style="color:#777; display:block; margin-bottom:10px;">${new Date(r.uploadedAt).toLocaleDateString()}</small>
+                <p style="font-size:0.9rem; margin-bottom:15px;">${r.desc}</p>
+                
+                <div style="margin-top:auto;">
+                    <audio src="${r.link}" controls style="width:100%; margin-bottom:10px;"></audio>
+                    <a href="${r.link}" download target="_blank" class="btn btn-outline btn-sm" style="width:100%; display:block; text-align:center;">
+                        <i class="fas fa-download"></i> Download Audio
+                    </a>
+                </div>
+            </div>
+        </div>
+    `).join('');
+        }
+
+        /* --- GALLERY & LIGHTBOX LOGIC --- */
+        async function loadGallery() {
+            const grid = document.getElementById('user-gallery-grid');
+            grid.innerHTML = '<p style="text-align:center; width:100%;">Loading moments...</p>';
+
+            try {
+                const mediaItems = await (await authFetch(`${API_URL}/media`)).json();
+
+                // Filter: Must be 'inGallery' AND be an image
+                const images = mediaItems.filter(item =>
+                    (item.inGallery === true || item.inGallery === 'true') &&
+                    (item.type === 'image' || item.path.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                );
+
+                if (images.length === 0) {
+                    grid.innerHTML = '<p style="text-align:center; width:100%;">No images found in the gallery yet.</p>';
+                    return;
+                }
+
+                // Simple render - CSS handles the fitting
+                grid.innerHTML = images.map((img) => `
+                    <div class="gallery-item" onclick="openLightbox('${img.path}')">
+                        <img src="${img.path}" alt="${img.name}" loading="lazy">
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error(e);
+                grid.innerHTML = '<p style="text-align:center; color:red;">Failed to load gallery.</p>';
+            }
+        }
+
+        function openLightbox(url) {
+            const modal = document.getElementById('lightbox-modal');
+            const img = document.getElementById('lightbox-content');
+            img.src = url;
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+
+        function closeLightbox(event, force = false) {
+            // Close if clicked on overlay (id=lightbox-modal) or the close button (force=true)
+            if (force || event.target.id === 'lightbox-modal') {
+                document.getElementById('lightbox-modal').style.display = 'none';
+                document.getElementById('lightbox-content').src = '';
+                document.body.style.overflow = 'auto'; // Restore scrolling
+            }
+        }
+
+        async function loadHome() {
+            const c = await (await authFetch(`${API_URL}/camp-details`)).json();
+            if (c && c.title) {
+                document.getElementById('u-camp-title').innerText = c.title;
+                document.getElementById('u-camp-from').innerText = c.from;
+                document.getElementById('u-camp-to').innerText = c.to;
+                document.getElementById('u-camp-loc').innerText = c.location;
+                document.getElementById('u-reg-count').innerText = c.regCount || 0;
+                document.getElementById('u-total-seats').innerText = c.totalSeats || '∞';
+                document.getElementById('u-camp-contact1').innerText = (c.contact1 || "Maneesha") + ": " + (c.phone1 || "94802 78144");
+                document.getElementById('u-camp-contact2').innerText = (c.contact2 || "Jayaram") + ": " + (c.phone2 || "91643 85551");
+            }
+
+            const sList = await (await authFetch(`${API_URL}/sannadhi`)).json();
+            if (sList.length === 0) {
+                document.getElementById('user-sannadhi-list').innerHTML = `<p style="text-align:center;">Details coming soon...</p>`;
+            } else {
+                document.getElementById('user-sannadhi-list').innerHTML = sList.map((s, idx) => `
+                    <div class="alternating-item" style="flex-direction:${idx % 2 === 0 ? 'row' : 'row-reverse'};">
+                        <div style="flex:1; width:100%;">${renderSmartMedia(s.img, '300px')}</div>
+                        <div style="flex:1">
+                            <h3 style="color:var(--primary); margin-bottom:10px;">${s.title}</h3>
+                            <p>${s.desc}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const t = await (await authFetch(`${API_URL}/techniques`)).json();
+            // Use smart media render for techniques
+            document.getElementById('user-techniques-grid').innerHTML = t.map(x => `
+                <div class="tech-card" style="height: 100%;">
+                    ${renderSmartMedia(x.img, '220px', 'tech-card-img')}
+                    <div class="card-body">
+                        <h4 style="margin-bottom:10px;">${x.title}</h4>
+                        <p style="font-size:0.9rem;">${x.desc}</p>
+                    </div>
+                </div>`).join('');
+
+            const ins = await (await authFetch(`${API_URL}/insights`)).json();
+            document.getElementById('user-insights-container').innerHTML = ins.map((i, idx) => `
+                <div class="alternating-item" style="flex-direction:${idx % 2 === 0 ? 'row' : 'row-reverse'};">
+                     <div style="flex:1; width:100%;">${renderSmartMedia(i.img, '300px')}</div>
+                    <div style="flex:1"><h3>${i.title}</h3><br><p>${i.desc}</p></div>
+                </div>`).join('');
+
+            loadMovements();
+
+            const g = await (await authFetch(`${API_URL}/glimpses`)).json();
+            document.getElementById('marquee-track').innerHTML = g.map(x => `<img src="${x.img}" class="glimpse-img">`).join('');
+        }
+
+        // async function loadMovements() {
+        //     const movements = await (await authFetch(`${API_URL}/movements`)).json();
+        //     if (movements.length === 0) {
+        //         document.getElementById('user-movements-grid').innerHTML = '<p style="text-align:center; width:100%;">No videos yet.</p>';
+        //         return;
+        //     }
+        //     document.getElementById('user-movements-grid').innerHTML = movements.map(m => {
+        //         // FIX: Changed '100%' to '200px' to ensure uniform card size
+        //         let videoContent = renderSmartMedia(m.videoUrl, '200px');
+
+        //         // Wrap in video-container for iframe aspect ratio if it's youtube
+        //         if (m.videoUrl.includes('youtube') || m.videoUrl.includes('youtu.be')) {
+        //             videoContent = `<div class="video-container">${videoContent}</div>`;
+        //         }
+
+        //         return `
+        // <div class="video-card">
+        //     ${videoContent}
+        //     <div class="card-body">
+        //         <h4>${m.title}</h4>
+        //         <p>${m.desc}</p>
+        //     </div>
+        // </div>`;
+        //     }).join('');
+        // }
+
+        async function loadMovements() {
+            const movements = await (await authFetch(`${API_URL}/movements`)).json();
+            if (movements.length === 0) {
+                document.getElementById('user-movements-grid').innerHTML = '<p style="text-align:center; width:100%; color:#777;">No videos added yet.</p>';
+                return;
+            }
+            document.getElementById('user-movements-grid').innerHTML = movements.map(m => {
+                // Use a fixed height for the media area so cards align perfectly
+                let videoContent = renderSmartMedia(m.videoUrl, '220px');
+
+                // Wrap in video-container if it's an iframe (YouTube) to prevent sizing issues
+                if (m.videoUrl.includes('youtube') || m.videoUrl.includes('youtu.be')) {
+                    videoContent = `<div class="video-container" style="padding-bottom: 56.25%; height: 0;">${videoContent}</div>`;
+                }
+
+                return `
+        <div class="video-card">
+            <div style="overflow:hidden;">
+                ${videoContent}
+            </div>
+            <div class="card-body">
+                <h4>${m.title}</h4>
+                <p>${m.desc}</p>
+            </div>
+        </div>`;
+            }).join('');
+        }
+
+        /* --- STORE FUNCTIONS --- */
+        async function loadStore() {
+            cachedProducts = await (await authFetch(`${API_URL}/products`)).json();
+            filterStore('All');
+        }
+
+        // Helper to load latest releases inside the Store page
+        async function loadLatestReleases() {
+            if (cachedProducts.length === 0) {
+                cachedProducts = await (await authFetch(`${API_URL}/products`)).json();
+            }
+            // Filter products marked as latest
+            const latest = cachedProducts.filter(p => p.latest === true && p.stock > 0);
+            const container = document.getElementById('latest-release-section');
+            const grid = document.getElementById('user-latest-grid');
+
+            if (latest.length > 0) {
+                container.style.display = 'block';
+                grid.innerHTML = latest.map(x => renderProductHTML(x)).join('');
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function filterStore(category, btn) {
+            currentFilter = category;
+            if (btn) {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            let filtered = cachedProducts.filter(x => x.stock > 0);
+            if (category !== 'All') {
+                filtered = filtered.filter(p => p.type === category);
+            }
+            renderStoreProducts(filtered);
+        }
+
+        function filterStoreSearch(query) {
+            const q = query.toLowerCase();
+            let filtered = cachedProducts.filter(x => x.stock > 0 && x.name.toLowerCase().includes(q));
+            if (currentFilter !== 'All') {
+                filtered = filtered.filter(p => p.type === currentFilter);
+            }
+            renderStoreProducts(filtered);
+        }
+
+        function getStarRating() {
+            const stars = [4, 4.5, 5];
+            const rating = stars[Math.floor(Math.random() * stars.length)];
+            let html = '';
+            for (let i = 0; i < Math.floor(rating); i++) html += '<i class="fas fa-star"></i>';
+            if (rating % 1 !== 0) html += '<i class="fas fa-star-half-alt"></i>';
+            return html;
+        }
+
+        // Helper function to render a single product card HTML
+        function renderProductHTML(x) {
+            return `
+                <div class="store-card">
+                    <img src="${x.img}" loading="lazy">
+                    <div class="card-body">
+                        <h5>${x.name}</h5>
+                        <div class="rating">${getStarRating()}</div>
+                        <small style="color:#777;">${x.type} ${x.size ? '- ' + x.size : ''}</small>
+                        <div class="store-price">₹${x.price}</div>
+                        <button class="btn btn-primary btn-sm" style="width:100%; border-radius:20px;" onclick="addToCart('${x._id}', '${x.name}', ${x.price})">Add to Cart</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStoreProducts(products) {
+            const grid = document.getElementById('user-product-grid');
+            if (products.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center;">No products found.</p>';
+                return;
+            }
+            grid.innerHTML = products.map(x => renderProductHTML(x)).join('');
+        }
+
+        async function sendMessage() {
+            const name = document.getElementById('cm-name').value;
+            const message = document.getElementById('cm-msg').value;
+            if (!name || !message) return alert("Please fill all fields");
+
+            await authFetch(`${API_URL}/contact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, message, userId: currentUser?._id })
+            });
+            alert("Message Sent!");
+            document.getElementById('cm-msg').value = '';
+            closeModal('contact-modal');
+        }
+
+        function toggleCart() { const c = document.getElementById('cart-modal'); c.style.display = c.style.display === 'flex' ? 'none' : 'flex'; }
+        function addToCart(id, name, price) { cart.push({ _id: id, name, price }); renderCart(); toggleCart(); }
+        function renderCart() {
+            document.getElementById('cart-badge').innerText = cart.length;
+            let tot = 0;
+            document.getElementById('cart-items').innerHTML = cart.map((i, idx) => { tot += i.price; return `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><div>${i.name}<br>₹${i.price}</div><button onclick="cart.splice(${idx},1);renderCart()" class="btn btn-danger btn-sm">X</button></div>`; }).join('');
+            document.getElementById('cart-total').innerText = tot;
+        }
+        function initCheckout() { if (cart.length === 0) return; toggleCart(); document.getElementById('co-total').innerText = cart.reduce((a, b) => a + b.price, 0); document.getElementById('checkout-modal').style.display = 'flex'; }
+        async function confirmOrder() {
+            const pass = document.getElementById('co-pass').value;
+            if (!pass) return alert("Password required");
+            const res = await authFetch(`${API_URL}/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser._id, cart, password: pass }) });
+            if (res.ok) { alert("Ordered!"); cart = []; renderCart(); closeModal('checkout-modal'); switchUserPage('orders'); } else alert("Failed");
+        }
+        async function loadOrders() {
+            const ords = await (await authFetch(`${API_URL}/orders?userId=${currentUser._id}`)).json();
+            cachedOrders = ords;
+            document.getElementById('user-orders-list').innerHTML = ords.map(o => {
+                const oid = '#OSHO_' + new Date(o.date).getFullYear() + '_' + o._id.substr(-4);
+                return `<div class="store-card" style="padding:20px;"><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span style="color:var(--primary); font-weight:bold;">${o.status}</span><small>${new Date(o.date).toLocaleDateString()}</small></div><h4>${oid}</h4><p>Items: ${o.items.length}</p><p>Total: ₹${o.total - 100}</p><button class="btn btn-outline btn-sm" onclick="downloadBill('${o._id}')">Invoice</button></div>`;
+            }).join('');
+        }
+
+        function downloadBill(id) {
+            const o = cachedOrders.find(x => x._id === id);
+            const doc = new window.jspdf.jsPDF();
+            const oid = '#OSHO_' + new Date(o.date).getFullYear() + '_' + o._id.substr(-4);
+
+            doc.setFillColor(211, 84, 0);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.text("OSHO MEDITATION CAMP", 105, 25, { align: 'center' });
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text("INVOICE", 14, 55);
+            doc.setFontSize(10);
+            doc.text(`Order ID: ${oid}`, 14, 62);
+            doc.text(`Date: ${new Date(o.date).toLocaleDateString()}`, 14, 68);
+
+            doc.text(`Bill To:`, 140, 55);
+            doc.text(currentUser.username, 140, 62);
+            const addrLines = doc.splitTextToSize(o.address || '', 60);
+            doc.text(addrLines, 140, 68);
+
+            doc.autoTable({
+                startY: 90,
+                head: [['Item Name', 'Price (Rs)']],
+                body: [...o.items.map(i => [i.name, i.price]), [{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, o.total - 100]],
+                theme: 'grid', headStyles: { fillColor: [211, 84, 0] }
+            });
+            doc.save(`Invoice_${oid}.pdf`);
+        }
+
+        // Replace the existing openCampRegModal function
+        async function openCampRegModal() {
+            // Just open the modal normally, no checks needed for UI blocking
+            document.getElementById('camp-reg-modal').style.display = 'flex';
+            document.getElementById('reg-full-view').style.display = 'none'; // Ensure error view is hidden
+            document.getElementById('reg-step-1').style.display = 'block';
+            document.getElementById('reg-step-2').style.display = 'none';
+            document.getElementById('reg-count').value = 1;
+            document.getElementById('cr-confirm').value = '';
+        }
+
+        function generateRegForms() {
+            const num = parseInt(document.getElementById('reg-count').value); // Added this line to define num
+            if (isNaN(num) || num < 1) return alert("Please enter a valid number of people");
+
+            let html = '';
+            for (let i = 0; i < num; i++) {
+                html += `
+            <div class="list-item" style="margin-bottom:10px; border: 1px solid #eee; padding: 10px; border-radius: 8px;">
+                <label style="color:var(--primary); font-weight:600;">Person ${i + 1}</label>
+                <input type="text" class="reg-name" placeholder="Name" value="${i === 0 ? currentUser.username : ''}">
+                <input type="tel" class="reg-phone" placeholder="Phone" value="${i === 0 ? (currentUser.phone || '') : ''}">
+                <select class="reg-type" style="margin-bottom:10px; width: 100%;">
+                    <option value="First Timer">First Timer</option>
+                    <option value="Repeater">Repeater</option>
+                </select>
+                
+                <label style="font-weight:600; margin-top:5px; display:block;">Room Type</label>
+                <select class="reg-room-type" style="margin-bottom:10px; width: 100%;">
+                    <option value="Normal (Rs. 5000)">Normal (Rs. 5000)</option>
+                    <option value="Special (Rs. 5500)">Special (Rs. 5500)</option>
+                </select>
+
+                <label style="font-weight:600; display:block;">Special Requirements</label>
+                <textarea class="reg-special-req" placeholder="Any health issues or food requirements?" rows="2" style="width:100%; margin-bottom:10px;"></textarea>
+            </div>
+        `;
+            }
+            document.getElementById('reg-forms-container').innerHTML = html;
+            document.getElementById('reg-step-1').style.display = 'none';
+            document.getElementById('reg-step-2').style.display = 'block';
+        }
+
+        async function submitCampReg() {
+            // --- FIX START: Move definitions to the top ---
+            const names = document.querySelectorAll('.reg-name');
+            const phones = document.querySelectorAll('.reg-phone');
+            const types = document.querySelectorAll('.reg-type');
+            const roomTypes = document.querySelectorAll('.reg-room-type');
+            const specialReqs = document.querySelectorAll('.reg-special-req');
+            // --- FIX END ---
+
+            const confirmationText = document.getElementById('cr-confirm').value.trim();
+            if (confirmationText !== "JAI OSHO") {
+                alert("Please type 'JAI OSHO' correctly to confirm.");
+                return;
+            }
+
+            // Now these loops will work because 'phones' and 'names' are defined above
+            for (let p of phones) {
+                if (!/^\d{10}$/.test(p.value.trim())) {
+                    alert("All phone numbers must be exactly 10 digits.");
+                    return;
+                }
+            }
+            for (let n of names) {
+                if (!n.value.trim()) {
+                    alert("Name cannot be empty.");
+                    return;
+                }
+            }
+
+            // 2. LOOP AND SUBMIT
+            let successCount = 0;
+            let lastMessage = "";
+
+            for (let i = 0; i < names.length; i++) {
+                const body = {
+                    userId: currentUser._id,
+                    username: names[i].value,
+                    phone: phones[i].value,
+                    type: types[i].value,
+                    roomType: roomTypes[i].value,
+                    specialReq: specialReqs[i].value,
+                    confirmation: "JAI OSHO"
+                };
+
+                try {
+                    const res = await authFetch(`${API_URL}/camp-register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    lastMessage = data.message;
+                    if (res.ok) successCount++;
+                } catch (error) {
+                    console.error("Registration error:", error);
+                }
+            }
+
+            if (successCount > 0) {
+                alert(`Successfully registered ${successCount} person(s). ${lastMessage}`);
+                closeModal('camp-reg-modal');
+                loadHome();
+            } else {
+                alert("Registration failed. Please check your connection.");
+            }
+        }
+
+
+        // Replace the existing loadMyRegistrations function
+        async function loadMyRegistrations() {
+            const res = await authFetch(`${API_URL}/my-registrations/${currentUser._id}`);
+            const regs = await res.json();
+            myRegistrations = regs;
+
+            const grid = document.getElementById('user-my-regs-list');
+            if (regs.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center;">No upcoming camp registrations found.</p>';
+                return;
+            }
+
+            grid.innerHTML = regs.map(r => {
+                const status = r.status || 'Confirmed';
+                let statusStyle = "background:#27ae60"; // Green
+                let cardStyle = "";
+
+                if (status === 'Waiting') {
+                    statusStyle = "background:#e74c3c"; // Red/Orange
+                    cardStyle = "border: 2px solid #e74c3c; background-color: #fff5f5;";
+                } else if (status === 'Rejected') {
+                    statusStyle = "background:#333";
+                    cardStyle = "border: 2px solid #333; opacity: 0.7;";
+                }
+
+                return `
+        <div class="store-card" style="padding:20px; ${cardStyle}">
+            <div style="text-align:center; margin-bottom:15px;">
+                <i class="fas fa-user-circle" style="font-size:3rem; color:#ddd;"></i>
+            </div>
+            <h4 style="text-align:center; color:var(--primary); margin-bottom:5px;">${r.username}</h4>
+            <p style="text-align:center; color:#777; font-size:0.9rem;">${r.phone}</p>
+            
+            <div style="text-align:center; margin:10px 0; display:flex; gap:5px; justify-content:center;">
+                <span style="background:${r.type === 'First Timer' ? '#e67e22' : '#2980b9'}; color:white; padding:4px 10px; border-radius:15px; font-size:0.8rem;">${r.type}</span>
+                <span style="${statusStyle}; color:white; padding:4px 10px; border-radius:15px; font-size:0.8rem;">${status}</span>
+            </div>
+            
+            <p style="font-size:0.8rem; text-align:center; color:#999; margin-bottom:15px;">Registered: ${new Date(r.date).toLocaleDateString()}</p>
+            
+            <div style="display:flex; gap:10px;">
+                ${status !== 'Rejected' ? `<button class="btn btn-outline btn-sm" style="flex:1;" onclick="openEditReg('${r._id}')">Update</button>` : ''}
+                <button class="btn btn-danger btn-sm" style="flex:1;" onclick="deleteReg('${r._id}')">Cancel</button>
+            </div>
+        </div>
+    `}).join('');
+        }
+
+
+        async function deleteReg(id) {
+            if (!confirm("Are you sure you want to cancel this registration?")) return;
+            await authFetch(`${API_URL}/registrations/${id}`, { method: 'DELETE' });
+            loadMyRegistrations();
+        }
+
+        function openEditReg(id) {
+            const r = myRegistrations.find(x => x._id === id);
+            if (!r) return;
+            document.getElementById('er-id').value = r._id;
+            document.getElementById('er-name').value = r.username;
+            document.getElementById('er-phone').value = r.phone;
+            document.getElementById('er-type').value = r.type;
+            document.getElementById('edit-reg-modal').style.display = 'flex';
+        }
+
+        async function saveRegUpdate() {
+            const id = document.getElementById('er-id').value;
+            const body = {
+                username: document.getElementById('er-name').value,
+                phone: document.getElementById('er-phone').value,
+                type: document.getElementById('er-type').value
+            };
+            if (!body.username || !body.phone) return alert("Fields cannot be empty");
+
+            const res = await authFetch(`${API_URL}/registrations/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                alert("Registration Updated");
+                closeModal('edit-reg-modal');
+                loadMyRegistrations();
+            } else {
+                alert("Update failed");
+            }
+        }
+
+        async function loadProfile() {
+            const u = await (await authFetch(`${API_URL}/users/${currentUser._id}`)).json();
+            document.getElementById('p-username').value = u.username; document.getElementById('p-phone').value = u.phone; document.getElementById('p-email').value = u.email || ''; document.getElementById('p-addr').value = u.address;
+        }
+        async function updateProfile() {
+            const phone = document.getElementById('p-phone').value.trim(); // Add trim
+            // VALIDATION START
+            if (!/^\d{10}$/.test(phone)) return alert("Phone number must be exactly 10 digits.");
+            // VALIDATION END
+
+            await authFetch(`${API_URL}/users/${currentUser._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: phone,
+                    email: document.getElementById('p-email').value,
+                    address: document.getElementById('p-addr').value,
+                    password: document.getElementById('p-pass').value
+                })
+            });
+            alert("Updated");
+            document.getElementById('p-pass').value = '';
+        }
+
+        /* --- ADMIN FUNCTIONS --- */
+        function switchAdminTab(t) {
+            document.querySelectorAll('.admin-main > div').forEach(d => d.style.display = 'none');
+            document.querySelectorAll('.admin-menu button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`adm-tab-${t}`).style.display = 'block';
+            document.getElementById(`btn-adm-${t}`).classList.add('active');
+
+            // AUTO REFRESH: Always call logic when tab switches
+            if (t === 'products') loadProducts();
+            else if (t === 'camp') loadCampAdmin();
+            else if (t === 'rooms') loadRoomsAdmin();
+            else if (t === 'regs') loadRegistrations();
+            else if (t === 'orders') loadOrdersAdmin(false);
+            else if (t === 'history') loadOrdersAdmin(true);
+            else if (t === 'messages') loadMessages();
+            else if (t === 'recordings') loadGenericAdmin('recordings');
+            else if (t === 'media') loadMedia();
+            else loadGenericAdmin(t);
+        }
+
+        async function loadProducts() {
+            const p = await (await authFetch(`${API_URL}/products`)).json();
+            document.getElementById('admin-prod-list').innerHTML = p.map(x => `<div class="admin-card list-item"><h5><span class="search-target">${x.name}</span></h5><p>Stock: ${x.stock}</p>${x.latest ? '<span style="background:#f39c12; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-right:5px;">Latest</span>' : ''}<button class="btn btn-danger btn-sm" onclick="del('products','${x._id}')">Delete</button></div>`).join('');
+        }
+        async function addProduct() {
+            const body = {
+                type: document.getElementById('new-p-type').value,
+                name: document.getElementById('new-p-name').value,
+                price: parseInt(document.getElementById('new-p-price').value),
+                stock: parseInt(document.getElementById('new-p-stock').value),
+                img: document.getElementById('new-p-img').value,
+                // Task 2: Capture checkbox value
+                latest: document.getElementById('new-p-latest').checked
+            };
+            await authFetch(`${API_URL}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            // Task 6: Reset Form
+            document.getElementById('new-p-name').value = '';
+            document.getElementById('new-p-price').value = '';
+            document.getElementById('new-p-stock').value = '';
+            document.getElementById('new-p-img').value = '';
+            document.getElementById('new-p-latest').checked = false; // Reset checkbox
+            loadProducts();
+        }
+
+        async function loadCampAdmin() {
+            const c = await (await authFetch(`${API_URL}/camp-details`)).json();
+            cachedCamp = c;
+
+            if (c) {
+                document.getElementById('adm-reg-count').innerText = c.regCount || 0;
+                document.getElementById('camp-total-seats').value = c.totalSeats || '';
+            }
+
+            if (c.title) {
+                document.getElementById('camp-title').value = c.title;
+                document.getElementById('camp-from').value = c.from;
+                document.getElementById('camp-to').value = c.to;
+                document.getElementById('camp-loc').value = c.location;
+                // Populate new contact fields
+                document.getElementById('camp-contact1-name').value = c.contact1 || "";
+                document.getElementById('camp-contact1-phone').value = c.phone1 || "";
+                document.getElementById('camp-contact2-name').value = c.contact2 || "";
+                document.getElementById('camp-contact2-phone').value = c.phone2 || "";
+            }
+        }
+
+        async function updateCampDetails() {
+            const phone1 = document.getElementById('camp-contact1-phone').value.trim();
+            const phone2 = document.getElementById('camp-contact2-phone').value.trim();
+
+            // VALIDATION: Check contact numbers
+            if ((phone1 && !/^\d{10}$/.test(phone1)) || (phone2 && !/^\d{10}$/.test(phone2))) {
+                alert("Contact phone numbers must be exactly 10 digits.");
+                return; // Stop execution
+            }
+
+            const body = {
+                totalSeats: document.getElementById('camp-total-seats').value,
+                title: document.getElementById('camp-title').value,
+                from: document.getElementById('camp-from').value,
+                to: document.getElementById('camp-to').value,
+                location: document.getElementById('camp-loc').value,
+                contact1: document.getElementById('camp-contact1-name').value,
+                phone1: phone1,
+                contact2: document.getElementById('camp-contact2-name').value,
+                phone2: phone2
+            };
+
+            await authFetch(`${API_URL}/camp-details`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            alert("Camp Details Updated Successfully.");
+        }
+
+        async function resetCampRegistrations() {
+            if (!confirm("WARNING: This will delete ALL current participant registrations. This action cannot be undone. Are you sure?")) return;
+            const res = await authFetch(`${API_URL}/camp-reset`, { method: 'POST' });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        // --- ASSIGN ROOM LOGIC ---
+        async function openAssignRoomModal(regId) {
+            // 1. authFetch current Registration Details
+            // Note: cachedRegs is already populated by loadRegistrations()
+            const reg = cachedRegs.find(r => r._id === regId);
+            if (!reg) return;
+
+            document.getElementById('ar-name').innerText = reg.username;
+            document.getElementById('ar-phone').innerText = reg.phone;
+            document.getElementById('ar-req-type').innerText = reg.roomType || 'N/A';
+            document.getElementById('ar-reg-id').value = regId;
+
+            // 2. authFetch Rooms & Calculate Availability
+            // We need fresh data to ensure bed counts are correct
+            const rooms = await (await authFetch(`${API_URL}/rooms`)).json();
+            const allRegs = await (await authFetch(`${API_URL}/camp-registrations`)).json(); // authFetch fresh to count usage
+
+            const select = document.getElementById('ar-room-select');
+            select.innerHTML = '<option value="">-- Select a Room --</option>';
+
+            rooms.forEach(room => {
+                // Calculate used beds for this room
+                const used = allRegs.filter(r => r.assignedRoomId === room._id).length;
+                const available = room.beds - used;
+
+                let label = `${room.name} (Avail: ${available}/${room.beds})`;
+                if (available <= 0) label += " - FULL";
+
+                const option = document.createElement('option');
+                option.value = room._id;
+                option.text = label;
+                option.dataset.roomName = room.name; // Store name for easy access
+
+                // Disable if full, unless it's the room currently assigned to this user
+                if (available <= 0 && reg.assignedRoomId !== room._id) {
+                    option.disabled = true;
+                    option.style.color = 'red';
+                }
+
+                // Pre-select if already assigned
+                if (reg.assignedRoomId === room._id) option.selected = true;
+
+                select.appendChild(option);
+            });
+
+            document.getElementById('assign-room-modal').style.display = 'flex';
+        }
+
+        async function submitRoomAssignment() {
+            const regId = document.getElementById('ar-reg-id').value;
+            const select = document.getElementById('ar-room-select');
+            const roomId = select.value;
+
+            if (!roomId) return alert("Please select a room");
+
+            const roomName = select.options[select.selectedIndex].dataset.roomName;
+
+            await authFetch(`${API_URL}/registrations/${regId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    assignedRoomId: roomId,
+                    assignedRoomName: roomName
+                })
+            });
+
+            alert("Room Assigned Successfully!");
+            closeModal('assign-room-modal');
+            loadRegistrations(); // Refresh UI
+        }
+
+
+        async function loadRegistrations() {
+            const regs = await (await authFetch(`${API_URL}/camp-registrations`)).json();
+            cachedRegs = regs; // Keep the cache updated
+
+            document.getElementById('admin-regs-list').innerHTML = regs.map(r => {
+                const status = r.status || 'Confirmed';
+                let cardClass = 'admin-card list-item';
+                let badgeHtml = `<span class="status-badge status-confirmed-badge">Confirmed</span>`;
+                let actionButtons = ``; // Start with an empty string
+
+                // --- 1. Status Logic & Card Styling ---
+                if (status === 'Waiting') {
+                    cardClass += ' card-waiting';
+                    badgeHtml = `<span class="status-badge status-waiting-badge">Waiting List</span>`;
+                } else if (status === 'Rejected') {
+                    cardClass += ' card-rejected';
+                    badgeHtml = `<span class="status-badge status-rejected-badge">Rejected</span>`;
+                }
+
+                // --- 2. Assigned Room Info (NEW) ---
+                const assignedRoomHtml = r.assignedRoomName ?
+                    `<div style="margin-top:10px; padding:5px; background:#e8f8f5; border:1px solid #a2d9ce; border-radius:5px; color:#148f77; font-size:0.9rem;">
+                        <i class="fas fa-bed"></i> Assigned: <strong>${r.assignedRoomName}</strong>
+                     </div>`
+                    : `<div style="margin-top:10px; padding:5px; background:#eee; border-radius:5px; color:#777; font-size:0.8rem;">No Room Assigned</div>`;
+
+
+                // --- 3. Action Buttons Logic (UPDATED) ---
+
+                // A. Add 'Assign Room' button if NOT rejected
+                if (status !== 'Rejected') {
+                    actionButtons += `
+                        <button class="btn btn-outline btn-sm" style="width:100%; margin-top:10px; border-color:var(--primary);" onclick="openAssignRoomModal('${r._id}')">
+                            <i class="fas fa-key"></i> Assign Room
+                        </button>
+                    `;
+                }
+
+                // B. Add Status Change/Delete buttons
+                if (status === 'Waiting') {
+                    actionButtons += `
+                        <div style="display:flex; gap:5px; margin-top:10px;">
+                            <button class="btn btn-success btn-sm" style="flex:1" onclick="adminUpdateStatus('${r._id}', 'Confirmed')">Accept</button>
+                            <button class="btn btn-danger btn-sm" style="flex:1" onclick="adminUpdateStatus('${r._id}', 'Rejected')">Reject</button>
+                        </div>`;
+                } else {
+                    // Delete button for Confirmed/Rejected
+                    actionButtons += `<button class="btn btn-danger btn-sm" style="width:100%; margin-top:5px;" onclick="del('registrations','${r._id}')">Delete</button>`;
+                }
+
+                // --- 4. Final Template Construction (UPDATED) ---
+                return `
+                    <div class="${cardClass}">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h5><span class="search-target">${r.username}</span></h5>
+                            ${badgeHtml}
+                        </div>
+                        <p><i class="fas fa-phone"></i> ${r.phone}</p>
+                        
+                        <div style="background:#f4f4f4; padding:8px; border-radius:6px; margin:10px 0; font-size:0.85rem;">
+                            <div style="margin-bottom:4px;"><strong>Req. Type:</strong> ${r.roomType || 'Standard'}</div>
+                            <div style="margin-bottom:4px;"><strong>Exp:</strong> ${r.type}</div>
+                            <div style="color:#555; font-style:italic;">
+                                <strong>Note:</strong> ${r.specialReq || 'No special requirements'}
+                            </div>
+                        </div>
+
+                        ${assignedRoomHtml} <small style="color:#999; display:block; margin-top:5px;">${new Date(r.date).toLocaleDateString()}</small>
+                        ${actionButtons}
+                    </div>`;
+            }).join('');
+        }
+
+        // NEW FUNCTION: Add this helper function to handle Accept/Reject clicks
+        async function adminUpdateStatus(id, newStatus) {
+            if (!confirm(`Mark this registration as ${newStatus}?`)) return;
+
+            await authFetch(`${API_URL}/registrations/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            loadRegistrations(); // Refresh list
+        }
+
+        // --- ROOM MANAGEMENT FUNCTIONS ---
+        async function loadRoomsAdmin() {
+            const rooms = await (await authFetch(`${API_URL}/rooms`)).json();
+
+            document.getElementById('admin-rooms-list').innerHTML = rooms.map(r => `
+                <div class="admin-card list-item" style="position:relative;">
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:0.8rem; color:#777;">Room Name</label>
+                        <input id="edit-r-name-${r._id}" value="${r.name}" style="margin-bottom:5px;">
+                        <label style="font-size:0.8rem; color:#777;">Total Beds</label>
+                        <input id="edit-r-beds-${r._id}" type="number" value="${r.beds}" style="margin-bottom:0;">
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-primary btn-sm" style="flex:1" onclick="updateRoom('${r._id}')">Update</button>
+                        <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteRoom('${r._id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addRoom() {
+            const name = document.getElementById('new-room-name').value;
+            const beds = document.getElementById('new-room-beds').value;
+            if (!name || !beds) return alert("Fill all fields");
+
+            await authFetch(`${API_URL}/rooms`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, beds })
+            });
+            document.getElementById('new-room-name').value = '';
+            document.getElementById('new-room-beds').value = '';
+            loadRoomsAdmin();
+        }
+
+        async function updateRoom(id) {
+            const name = document.getElementById(`edit-r-name-${id}`).value;
+            const beds = document.getElementById(`edit-r-beds-${id}`).value;
+            await authFetch(`${API_URL}/rooms/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, beds })
+            });
+            alert("Room Updated");
+            loadRoomsAdmin();
+        }
+
+        async function deleteRoom(id) {
+            if (!confirm("Delete this room?")) return;
+            await authFetch(`${API_URL}/rooms/${id}`, { method: 'DELETE' });
+            loadRoomsAdmin();
+        }
+
+        async function loadOrdersAdmin(historyMode) {
+            const ords = await (await authFetch(`${API_URL}/orders?admin=true`)).json();
+            // Cache ALL orders for report generation
+            cachedOrders = ords;
+
+            const list = historyMode ? ords.filter(o => o.status === 'Dispatched') : ords.filter(o => o.status !== 'Dispatched');
+            const containerId = historyMode ? 'admin-hist-list' : 'admin-orders-list';
+
+            document.getElementById(containerId).innerHTML = list.map(o => {
+                const oid = '#OSHO_' + new Date(o.date).getFullYear() + '_' + o._id.substr(-4);
+
+                // NEW: Create a comma-separated string of item names
+                const itemsSummary = o.items.map(i => `${i.name} (₹${i.price})`).join(', ');
+
+                return `
+                <div class="admin-card list-item" style="border-left:5px solid ${historyMode ? '#27ae60' : '#f39c12'}">
+                    <h4 class="search-target" style="color:var(--primary);">${o.username}</h4>
+                    <small>ID: ${oid}</small>
+                    
+                    <p style="margin-top:5px; color:#555;"><strong>Items:</strong> ${itemsSummary}</p>
+                    
+                    <p><strong>Total:</strong> ₹${o.total - 100}</p>
+                    <p style="background:#f9f9f9; padding:5px; margin:5px 0;">${o.address}</p>
+                    <div style="margin-top:10px;">
+                        ${!historyMode ? `<button class="btn btn-success btn-sm" onclick="dispatchOrder('${o._id}')">Dispatch</button>` : '<span style="color:#27ae60; font-weight:bold;">Dispatched</span>'}
+                        <button class="btn btn-danger btn-sm" onclick="del('orders','${o._id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function downloadOrderReport() {
+            if (!cachedOrders || cachedOrders.length === 0) return alert("No order data available.");
+
+            const selectedMonth = document.getElementById('rep-month').value;
+            const selectedYear = parseInt(document.getElementById('rep-year').value);
+
+            // Filter Data
+            const reportData = cachedOrders.filter(o => {
+                const d = new Date(o.date);
+                const oYear = d.getFullYear();
+                const oMonth = d.getMonth(); // 0-11
+
+                if (selectedMonth === 'All') {
+                    return oYear === selectedYear;
+                } else {
+                    return oYear === selectedYear && oMonth === parseInt(selectedMonth);
+                }
+            });
+
+            if (reportData.length === 0) return alert("No orders found for the selected period.");
+
+            // Generate PDF
+            const doc = new window.jspdf.jsPDF();
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const periodText = selectedMonth === 'All' ? `Year: ${selectedYear}` : `${monthNames[parseInt(selectedMonth)]} ${selectedYear}`;
+
+            // Header
+            doc.setFillColor(211, 84, 0);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.text("OSHO SANNADHI STORE", 105, 25, { align: 'center' });
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(16);
+            doc.text("ORDER REPORT", 14, 55);
+            doc.setFontSize(12);
+            doc.text(`Period: ${periodText}`, 14, 62);
+
+            // Stats
+            const totalRevenue = reportData.reduce((acc, curr) => acc + curr.total, 0);
+            doc.text(`Total Orders: ${reportData.length}`, 14, 70);
+            doc.text(`Total Revenue: Rs. ${totalRevenue}`, 14, 76);
+
+            doc.autoTable({
+                startY: 85,
+                head: [['Date', 'Order ID', 'Customer', 'Items', 'Total (Rs)', 'Status']],
+                body: reportData.map(o => [
+                    new Date(o.date).toLocaleDateString(),
+                    '#' + o._id.substr(-4),
+                    o.username,
+                    o.items.length,
+                    o.total - 100,
+                    o.status
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [211, 84, 0] },
+                styles: { fontSize: 9 }
+            });
+
+            doc.save(`Order_Report_${selectedYear}_${selectedMonth}.pdf`);
+        }
+        async function dispatchOrder(id) {
+            if (confirm("Mark as Dispatched?")) {
+                await authFetch(`${API_URL}/orders/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'Dispatched' })
+                });
+                loadOrdersAdmin(false); // Ensure this is false to reload the "Active Orders" tab
+            }
+        }
+
+        async function loadMessages() {
+            const msgs = await (await authFetch(`${API_URL}/messages`)).json();
+            window.cachedMsgs = msgs;
+            document.getElementById('admin-msg-list').innerHTML = msgs.map((m, idx) => `
+                <div class="admin-card list-item">
+                    <h5><span class="search-target">${m.name}</span></h5>
+                    <small>${new Date(m.date).toLocaleDateString()}</small>
+                    <p>${m.message.substring(0, 40)}...</p>
+                    <div style="margin-top:10px; display:flex; gap:10px;">
+                        <button class="btn btn-outline btn-sm" onclick="viewMessage(${idx})">View</button>
+                        <button class="btn btn-danger btn-sm" onclick="del('messages','${m._id}')">Delete</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function viewMessage(idx) {
+            const m = window.cachedMsgs[idx];
+            document.getElementById('mvm-sender').innerText = m.name;
+            document.getElementById('mvm-date').innerText = new Date(m.date).toLocaleString();
+            document.getElementById('mvm-content').innerText = m.message;
+            document.getElementById('msg-view-modal').style.display = 'flex';
+        }
+
+        async function loadGenericAdmin(t) {
+            let apiEndpoint = t;
+            if (t === 'backimg') apiEndpoint = 'hero-images';
+
+            const data = await (await authFetch(`${API_URL}/${apiEndpoint}`)).json();
+
+            // Save data to cache for the View Modal
+            adminDataCache = data;
+
+            const container = document.getElementById(
+                t === 'sannadhi' ? 'admin-san-list' :
+                    t === 'movements' ? 'admin-movement-list' :
+                        t === 'techniques' ? 'admin-tech-list' :
+                            t === 'insights' ? 'admin-insight-list' :
+                                t === 'recordings' ? 'admin-rec-list' :
+                                    t === 'glimpses' ? 'admin-glimpse-list' : 'admin-hero-list'
+            );
+
+            // Clear previous content
+            container.innerHTML = '';
+
+            // Apply specific grid classes based on type
+            container.className = (t === 'glimpses' || t === 'backimg') ? 'grid-store grid' : 'grid grid-3';
+
+            if (data.length === 0) {
+                container.innerHTML = '<p>No items found.</p>';
+                return;
+            }
+
+            container.innerHTML = data.map((item, index) => {
+                // Determine Title and Description based on item type
+                const title = item.title || item.name || 'Untitled';
+                const desc = item.desc || item.videoUrl || '';
+                const imgUrl = item.img || item.videoUrl || item.path || '';
+
+                // Truncate description for the card
+                const shortDesc = desc.length > 50 ? desc.substring(0, 50) + '...' : desc;
+
+                // Handle Glimpses/Hero Images (Image only, no title/desc usually)
+                if (t === 'glimpses' || t === 'backimg') {
+                    return `
+                    <div class="admin-card list-item" style="padding:10px;">
+                        <img src="${imgUrl}" style="width:100%; height:120px; object-fit:cover; border-radius:5px; margin-bottom:10px;">
+                        <button class="btn btn-danger btn-sm" style="width:100%;" onclick="del('${apiEndpoint}','${item._id}')">Delete</button>
+                    </div>`;
+                }
+
+                // Standard Card for Techniques, Sannadhi, Insights, Movements
+                return `
+                <div class="admin-card list-item" style="display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                    <div>
+                        <div style="height:150px; overflow:hidden; border-radius:8px; margin-bottom:10px; background:#f0f0f0;">
+                            ${renderSmartMedia(imgUrl, '100%', 'admin-card-media')}
+                        </div>
+                        <h4 style="font-size:1.1rem; margin-bottom:5px; color:var(--primary);">${title}</h4>
+                        <p style="font-size:0.85rem; color:#666; margin-bottom:10px;">${shortDesc}</p>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:auto;">
+                        <button class="btn btn-outline btn-sm" style="flex:1" onclick="openGenericModal(${index})">View</button>
+                        <button class="btn btn-danger btn-sm" style="flex:1" onclick="del('${apiEndpoint}','${item._id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function addSannadhi() {
+            const body = { title: document.getElementById('san-title').value, desc: document.getElementById('san-desc').value, img: document.getElementById('san-img').value };
+            await authFetch(`${API_URL}/sannadhi`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            alert("Added Successfully");
+            // Task 6: Reset Form
+            document.getElementById('san-title').value = ''; document.getElementById('san-desc').value = ''; document.getElementById('san-img').value = '';
+            loadGenericAdmin('sannadhi');
+        }
+
+        async function addMovement() {
+            const body = {
+                title: document.getElementById('new-m-title').value,
+                desc: document.getElementById('new-m-desc').value,
+                videoUrl: document.getElementById('new-m-vid').value
+            };
+            if (!body.title || !body.videoUrl) return alert("Title and URL required");
+            await authFetch(`${API_URL}/movements`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            // Task 6: Reset Form
+            document.getElementById('new-m-title').value = '';
+            document.getElementById('new-m-desc').value = '';
+            document.getElementById('new-m-vid').value = '';
+            loadGenericAdmin('movements');
+        }
+
+        async function addTechnique() {
+            await authFetch(`${API_URL}/techniques`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('new-t-title').value, desc: document.getElementById('new-t-desc').value, img: document.getElementById('new-t-img').value }) });
+            // Task 6: Reset Form
+            document.getElementById('new-t-title').value = ''; document.getElementById('new-t-desc').value = ''; document.getElementById('new-t-img').value = '';
+            loadGenericAdmin('techniques');
+        }
+        async function addInsight() {
+            await authFetch(`${API_URL}/insights`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('new-i-title').value, desc: document.getElementById('new-i-desc').value, img: document.getElementById('new-i-img').value }) });
+            // Task 6: Reset Form
+            document.getElementById('new-i-title').value = ''; document.getElementById('new-i-desc').value = ''; document.getElementById('new-i-img').value = '';
+            loadGenericAdmin('insights');
+        }
+        async function addGlimpse() {
+            await authFetch(`${API_URL}/glimpses`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ img: document.getElementById('new-g-img').value }) });
+            // Task 6: Reset Form
+            document.getElementById('new-g-img').value = '';
+            loadGenericAdmin('glimpses');
+        }
+        async function addHeroImage() {
+            await authFetch(`${API_URL}/hero-images`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ img: document.getElementById('new-hero-img').value }) });
+            // Task 6: Reset Form
+            document.getElementById('new-hero-img').value = '';
+            loadGenericAdmin('backimg');
+        }
+        async function del(type, id) {
+            if (confirm("Delete?")) {
+                const url = type === 'media' ? 'media' : type;
+                await authFetch(`${API_URL}/${url}/${id}`, { method: 'DELETE' });
+                switchAdminTab(type === 'hero-images' ? 'backimg' : type === 'glimpses' ? 'glimpses' : type);
+            }
+        }
+
+        function filterList(inp, id) {
+            const f = inp.value.toUpperCase();
+            Array.from(document.getElementById(id).getElementsByClassName('list-item')).forEach(item => {
+                const target = item.getElementsByClassName('search-target')[0];
+                item.style.display = target && target.innerText.toUpperCase().includes(f) ? "" : "none";
+            });
+        }
+
+        // [NEW] Open Generic View Modal
+        function openGenericModal(index) {
+            const item = adminDataCache[index];
+            if (!item) return;
+
+            const title = item.title || item.name || 'Details';
+            const desc = item.desc || item.videoUrl || '';
+            const mediaUrl = item.img || item.videoUrl || '';
+
+            document.getElementById('gvm-title').innerText = title;
+            document.getElementById('gvm-desc').innerText = desc;
+            document.getElementById('gvm-media').innerHTML = renderSmartMedia(mediaUrl, '300px');
+
+            document.getElementById('generic-view-modal').style.display = 'flex';
+        }
+
+        function downloadRegPDF() {
+            if (!cachedRegs || cachedRegs.length === 0) return alert("No registrations found.");
+            const doc = new window.jspdf.jsPDF();
+            const total = cachedRegs.length;
+            const first = cachedRegs.filter(r => r.type === 'First Timer').length;
+            const repeat = cachedRegs.filter(r => r.type === 'Repeater').length;
+            const campTitle = cachedCamp.title || "Upcoming Camp";
+            const campDate = (cachedCamp.from && cachedCamp.to) ? `${cachedCamp.from} to ${cachedCamp.to}` : "Date TBA";
+
+            doc.setFillColor(211, 84, 0);
+            doc.rect(0, 0, 210, 50, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.text("OSHO SANNADHI", 105, 20, { align: 'center' });
+            doc.setFontSize(16);
+            doc.text("REGISTRATIONS REPORT", 105, 30, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(campTitle + " (" + campDate + ")", 105, 40, { align: 'center' });
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(11);
+            doc.text(`Total Participants: ${total}`, 14, 60);
+            doc.text(`First Timers: ${first}`, 80, 60);
+            doc.text(`Repeaters: ${repeat}`, 150, 60);
+
+            // ... inside downloadRegPDF ...
+
+            doc.autoTable({
+                startY: 70,
+                // UPDATED HEADER
+                head: [['#', 'Name', 'Phone', 'Req. Type', 'Assigned Room', 'Amount Paid']],
+                body: cachedRegs.map((r, i) => [
+                    i + 1,
+                    r.username,
+                    r.phone,
+                    r.roomType || 'Standard', // User Preference
+                    r.assignedRoomName || 'Not Assigned', // Actual Room
+                    '' // Blank column for Amount Paid manual entry
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [211, 84, 0] },
+                styles: { fontSize: 8 },
+                columnStyles: {
+                    5: { cellWidth: 30 } // Make Amount Paid column wider for writing
+                }
+            });
+            doc.save('Camp_Registrations_Report.pdf');
+        }
+
+    </script>
+</body>
+
+</html>
