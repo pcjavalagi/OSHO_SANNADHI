@@ -514,6 +514,7 @@ console.log("✅ Database Indexes Verified");
             }
         });
 
+      
         // 7. STREAM MEDIA ROUTE
         app.get('/api/media/stream/:filename', async (req, res) => {
             try {
@@ -522,7 +523,19 @@ console.log("✅ Database Indexes Verified");
                 
                 if (!files || files.length === 0) return res.status(404).send('File not found');
 
-                res.setHeader('Content-Type', files[0].contentType || 'application/octet-stream');
+                // --- FIX: Force Browser to see this as an Image ---
+                let contentType = files[0].contentType;
+
+                // If the database doesn't have a specific type, or it's generic, 
+                // we check the filename extension or default to jpeg.
+                if (!contentType || contentType === 'application/octet-stream') {
+                    if (filename.toLowerCase().endsWith('.png')) contentType = 'image/png';
+                    else if (filename.toLowerCase().endsWith('.webp')) contentType = 'image/webp';
+                    else contentType = 'image/jpeg'; // Default to jpeg so it shows as image
+                }
+
+                res.set('Content-Type', contentType);
+                // -------------------------------------------------
                 
                 const downloadStream = bucket.openDownloadStreamByName(filename);
                 downloadStream.pipe(res);
@@ -672,5 +685,6 @@ console.log("✅ Database Indexes Verified");
     }
 
 }
+
 
 run().catch(console.dir);
