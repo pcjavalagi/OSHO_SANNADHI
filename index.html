@@ -56,9 +56,9 @@
         //         return `<video class="${className}" src="${url}" controls style="width:100%; height:${heightStyle}; object-fit:cover;"></video>`;
         //     }
         //     // Default to Image
-        //     // Default to Image
         //     else {
-        //         return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:contain; background-color: #f0f0f0;" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
+        //         return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:contain; background-color: #f0f0f0;" onerror="this.onerror=null; this.src='osho_logo.png';">`;
+
         //     }
         // }
 
@@ -86,7 +86,7 @@
             }
             // Default to Image
             else {
-                return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:cover;" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
+               return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:cover;" onerror="this.onerror=null; this.src='osho_logo.png';">`;
             }
         }
 
@@ -2413,3 +2413,4 @@
 
 
 </html>
+
