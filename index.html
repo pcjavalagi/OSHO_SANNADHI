@@ -76,7 +76,7 @@
                 return `<video class="${className}" src="${url}" controls style="width:100%; height:${heightStyle}; object-fit:cover;"></video>`;
             }
             // NEW: Audio Detection
-            else if (url.match(/\.(mp3|wav|m4a)$/i) || url.includes('/media/stream/')) {
+            else if (url.match(/\.(mp3|wav|m4a)$/i)) {
                 // Simple check, might need refinement if stream URL doesn't have extension, 
                 // but for this context, we assume the user selects 'audio' in admin
                 return `<div class="${className}" style="height:${heightStyle}; background:#f1f3f4; display:flex; align-items:center; justify-content:center; flex-direction:column;">
@@ -2410,5 +2410,6 @@
 
     </script>
 </body>
+
 
 </html>
