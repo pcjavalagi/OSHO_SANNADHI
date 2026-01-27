@@ -515,7 +515,7 @@ console.log("✅ Database Indexes Verified");
         });
 
       
-// 7. STREAM MEDIA ROUTE (Fixed: Forces Images to Display)
+        // 7. STREAM MEDIA ROUTE (Fixed: Forces Images to Display)
         app.get('/api/media/stream/:filename', async (req, res) => {
             try {
                 const filename = req.params.filename;
@@ -690,5 +690,6 @@ console.log("✅ Database Indexes Verified");
 
 
 run().catch(console.dir);
+
 
 
