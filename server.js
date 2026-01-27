@@ -515,33 +515,29 @@ console.log("✅ Database Indexes Verified");
         });
 
       
-        // 7. STREAM MEDIA ROUTE
+// 7. STREAM MEDIA ROUTE (Fixed: Forces Images to Display)
         app.get('/api/media/stream/:filename', async (req, res) => {
             try {
                 const filename = req.params.filename;
                 const files = await bucket.find({ filename }).toArray();
                 
                 if (!files || files.length === 0) return res.status(404).send('File not found');
-                
+
                 const file = files[0];
+                let contentType = file.contentType;
 
-                // --- STRONGER FIX ---
-                // 1. Force the Content-Type based on file extension
-                // (This overrides whatever "confused" type might be saved in the database)
-                let contentType = file.contentType || 'application/octet-stream';
-                const lowerName = filename.toLowerCase();
+                // FIX 1: If MongoDB missed the type, detect it from the filename
+                if (!contentType || contentType === 'application/octet-stream') {
+                    const lowerName = filename.toLowerCase();
+                    if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) contentType = 'image/jpeg';
+                    else if (lowerName.endsWith('.png')) contentType = 'image/png';
+                    else if (lowerName.endsWith('.webp')) contentType = 'image/webp';
+                    else if (lowerName.endsWith('.svg')) contentType = 'image/svg+xml';
+                }
 
-                if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) contentType = 'image/jpeg';
-                else if (lowerName.endsWith('.png')) contentType = 'image/png';
-                else if (lowerName.endsWith('.gif')) contentType = 'image/gif';
-                else if (lowerName.endsWith('.webp')) contentType = 'image/webp';
-
-                // 2. Set the Content-Type header
-                res.set('Content-Type', contentType);
-
-                // 3. CRITICAL: Tell browser to display "inline" (not as a download or player)
-                res.set('Content-Disposition', 'inline'); 
-                // ---------------------
+                // FIX 2: Set Headers to force display
+                res.setHeader('Content-Type', contentType || 'image/jpeg'); 
+                res.setHeader('Content-Disposition', 'inline'); // 'inline' means "show in browser"
 
                 const downloadStream = bucket.openDownloadStreamByName(filename);
                 downloadStream.pipe(res);
@@ -694,4 +690,5 @@ console.log("✅ Database Indexes Verified");
 
 
 run().catch(console.dir);
+
 
