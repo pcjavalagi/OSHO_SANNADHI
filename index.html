@@ -86,7 +86,8 @@
             }
             // Default to Image
             else {
-               return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:cover;" onerror="this.onerror=null; this.src='osho_logo.png';">`;
+                return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:contain; background-color:#eeeeee;" onerror="this.onerror=null; this.src='osho_logo.png';">`;
+                // return `<img class="${className}" src="${url}" style="width:100%; height:${heightStyle}; object-fit:contain; background-color: #f3f3f3;" onerror="this.onerror=null; this.src='osho_logo.png';">`;
             }
         }
 
@@ -236,26 +237,39 @@
 
     <button onclick="topFunction()" id="scrollTopBtn" title="Go to top"><i class="fas fa-arrow-up"></i></button>
 
-    <div id="auth-section">
-        <div style="position: absolute; top: 20px; right: 20px;">
-            <button class="btn btn-outline btn-sm" onclick="toggleAuthMode()">Admin / User</button>
-        </div>
+    <div id="login-modal" class="modal">
+        <div class="modal-content auth-card-modal">
+            <span onclick="closeModal('login-modal')"
+                style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
 
-        <div class="auth-card" id="user-auth-box">
-            <h2 style="color:var(--primary); margin-bottom:10px;">Welcome Seeker</h2>
-            <p style="margin-bottom:20px; color:#7f8c8d;">Enter the world of meditation</p>
-            <input type="text" id="u-user" placeholder="Username">
-            <input type="password" id="u-pass" placeholder="Password">
-            <button class="btn btn-primary" style="width:100%;" onclick="userLogin()">Enter Camp</button>
-            <p style="margin-top:15px; font-size:0.85rem; cursor:pointer; color:var(--primary);"
-                onclick="openRegModal()">Create Account</p>
-        </div>
+            <div class="auth-tabs"
+                style="display:none; justify-content:center; margin-bottom:20px; border-bottom:1px solid #eee;">
+                <button id="tab-user" class="auth-tab active-tab" onclick="toggleLoginMode('user')">Seeker</button>
+                <button id="tab-admin" class="auth-tab" onclick="toggleLoginMode('admin')">Admin</button>
+            </div>
 
-        <div class="auth-card" id="admin-auth-box" style="display:none;">
-            <h2 style="color:#c0392b; margin-bottom:20px;">Admin Access</h2>
-            <input type="text" id="a-user" placeholder="Admin Username">
-            <input type="password" id="a-pass" placeholder="Admin Password">
-            <button class="btn btn-danger" style="width:100%;" onclick="adminLogin()">Dashboard Login</button>
+            <div id="login-form-user">
+                <h3 style="text-align:center; color:var(--primary); margin-bottom:10px;">Welcome Home</h3>
+                <p style="text-align:center; color:#777; margin-bottom:20px; font-size:0.9rem;">Sign in to access camp
+                    registration and store.</p>
+                <input type="text" id="u-user" placeholder="Username">
+                <input type="password" id="u-pass" placeholder="Password">
+                <button class="btn btn-primary" style="width:100%; margin-top:10px;"
+                    onclick="userLogin()">Login</button>
+                <p style="margin-top:15px; text-align:center; font-size:0.85rem;">
+                    New here? <span style="color:var(--primary); cursor:pointer; font-weight:600;"
+                        onclick="switchModal('login-modal','reg-modal')">Create Account</span>
+                </p>
+            </div>
+
+            <div id="login-form-admin" style="display:none;">
+                <h3 style="text-align:center; color:#c0392b; margin-bottom:20px;">Admin Dashboard</h3>
+                <input type="text" id="a-user" placeholder="Admin Username">
+                <input type="password" id="a-pass" placeholder="Admin Password">
+                <input type="password" id="a-key" placeholder="Security Master Key" style="border: 1px solid #c0392b;">
+                <button class="btn btn-danger" style="width:100%; margin-top:10px;" onclick="adminLogin()">Access
+                    Dashboard</button>
+            </div>
         </div>
     </div>
 
@@ -301,11 +315,11 @@
                 <button onclick="switchAdminTab('rooms')" id="btn-adm-rooms"><i class="fas fa-bed"></i> Rooms
                     Info</button>
                 <button onclick="switchAdminTab('movements')" id="btn-adm-movements"><i class="fas fa-video"></i> Camp
-                    Videos</button>
+                    Imgs/Videos</button>
                 <button onclick="switchAdminTab('glimpses')" id="btn-adm-glimpses"><i class="fas fa-images"></i>
                     Gallery</button>
                 <button onclick="switchAdminTab('media')" id="btn-adm-media"><i class="fas fa-photo-video"></i>
-                    Images/Videos</button>
+                    Upld Imas/Videos</button>
                 <button onclick="switchAdminTab('recordings')" id="btn-adm-recordings"><i class="fas fa-microphone"></i>
                     Satsang Recordings</button>
                 <button onclick="switchAdminTab('backimg')" id="btn-adm-backimg"><i class="fas fa-image"></i> Back
@@ -530,14 +544,14 @@
             </div>
 
             <div id="adm-tab-movements" style="display:none;">
-                <div class="admin-section-head">Camp Videos (Movements) <button class="refresh-btn"
+                <div class="admin-section-head">Camp Movements <button class="refresh-btn"
                         onclick="loadGenericAdmin('movements')"><i class="fas fa-sync-alt"></i></button></div>
                 <div class="admin-card">
-                    <h4>Add Camp Video</h4>
+                    <h4>Camp Movements</h4>
                     <input id="new-m-title" placeholder="Video Title">
                     <textarea id="new-m-desc" placeholder="Description"></textarea>
-                    <input id="new-m-vid" placeholder="Video URL (YouTube link or Uploaded File Path)">
-                    <button class="btn btn-primary" onclick="addMovement()">Add Video</button>
+                    <input id="new-m-vid" placeholder="Video URL or Image URL can be used">
+                    <button class="btn btn-primary" onclick="addMovement()">Update</button>
                 </div>
                 <div id="admin-movement-list" class="grid-2 grid"></div>
             </div>
@@ -631,14 +645,25 @@
             </div>
             <div class="nav-links">
                 <button onclick="switchUserPage('home')" id="nav-home" class="active-nav">Home</button>
-                <button onclick="switchUserPage('recordings')" id="nav-recordings">Recordings</button>
                 <button onclick="switchUserPage('gallery')" id="nav-gallery">Gallery</button>
-                <button onclick="switchUserPage('store')" id="nav-store">Store</button>
-                <button onclick="switchUserPage('regs')" id="nav-regs">Registrations</button>
-                <button onclick="switchUserPage('orders')" id="nav-orders">Orders</button>
-                <button onclick="switchUserPage('profile')" id="nav-profile">Profile</button>
-                <button onclick="toggleCart()">Cart (<span id="cart-badge">0</span>)</button>
-                <button onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+
+                <span id="nav-restricted" style="display:none; gap:20px; align-items:center;">
+                    <button onclick="switchUserPage('recordings')" id="nav-recordings">Recordings</button>
+                    <button onclick="switchUserPage('store')" id="nav-store">Store</button>
+                    <button onclick="switchUserPage('regs')" id="nav-regs">Registrations</button>
+                    <button onclick="switchUserPage('orders')" id="nav-orders">Orders</button>
+                    <button onclick="switchUserPage('profile')" id="nav-profile">Profile</button>
+                    <button onclick="toggleCart()">Cart (<span id="cart-badge">0</span>)</button>
+                    <button onclick="logout()" title="Logout" style="color:var(--primary);"><i
+                            class="fas fa-sign-out-alt"></i></button>
+                </span>
+
+                <span id="nav-guest" style="display:flex; gap:10px;">
+                    <button class="btn-login-ui btn-user-login" onclick="openLoginModal('user')"><i
+                            class="fas fa-user"></i> Login</button>
+                    <button class="btn-login-ui btn-admin-login" onclick="openLoginModal('admin')"><i
+                            class="fas fa-lock"></i> Admin</button>
+                </span>
             </div>
         </nav>
 
@@ -861,7 +886,7 @@
             </div>
             <div
                 style="text-align:center; margin-top:15px; border-top:1px solid #444; padding-top:10px; font-size:0.8rem; color:#888;">
-                © 2025 Osho Camp. All Rights Reserved.
+                © 2026 Osho Camp. All Rights Reserved.
             </div>
         </footer>
     </div>
@@ -937,8 +962,10 @@
                 <p><i class="fas fa-envelope"></i> allamapriya@gmail.com</p>
             </div>
             <h4 style="margin-bottom:10px;">Send a Message</h4>
-            <input id="cm-name" placeholder="Your Name (Phone number optional)">
-            <textarea id="cm-msg" placeholder="Write your message here..." rows="3"></textarea>
+            <input id="cm-name" placeholder="Your Name - Phone number">
+            <textarea id="cm-msg"
+                placeholder="Please share your queries with us. For any further questions or support, feel free to contact us directly....."
+                rows="3"></textarea>
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <button class="btn btn-primary" style="flex:1" onclick="sendMessage()">Send</button>
                 <button class="btn btn-outline" style="flex:1" onclick="closeModal('contact-modal')">Close</button>
@@ -1050,8 +1077,32 @@
             document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
         }
 
-        window.onload = () => { setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('auth-section').style.display = 'flex'; }, 3000); };
+        //window.onload = () => { setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('auth-section').style.display = 'flex'; }, 3000); };
 
+
+        //---------------------------------------
+        // REPLACE window.onload
+        window.onload = () => {
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                // Directly show user view, hide admin view, hide auth section (now modal)
+                document.getElementById('user-view').style.display = 'flex';
+                document.getElementById('admin-view').style.display = 'none';
+
+                // Check if token exists to auto-login
+                const token = localStorage.getItem('userToken');
+                if (token) {
+                    // Optional: You could fetch profile here to verify token
+                    currentUser = { _id: localStorage.getItem('userId'), username: localStorage.getItem('username') }; // Simple restore
+                    updateNavigation();
+                }
+
+                loadHome();
+                loadHeroImages();
+            }, 2500);
+        };
+
+        //---------------------------------------
         function toggleAuthMode() {
             const u = document.getElementById('user-auth-box'), a = document.getElementById('admin-auth-box');
             if (u.style.display === 'none') { u.style.display = 'block'; a.style.display = 'none'; } else { u.style.display = 'none'; a.style.display = 'block'; }
@@ -1061,6 +1112,50 @@
         function openContactModal() {
             if (currentUser) document.getElementById('cm-name').value = currentUser.username;
             document.getElementById('contact-modal').style.display = 'flex';
+        }
+
+        // 1. NEW: Navigation State Manager
+        function updateNavigation() {
+            const restrictedNav = document.getElementById('nav-restricted');
+            const guestNav = document.getElementById('nav-guest');
+
+            if (currentUser) {
+                restrictedNav.style.display = 'flex';
+                guestNav.style.display = 'none';
+            } else {
+                restrictedNav.style.display = 'none';
+                guestNav.style.display = 'flex';
+            }
+        }
+
+        // 2. NEW: Modal Logic
+        function openLoginModal(mode = 'user') {
+            document.getElementById('login-modal').style.display = 'flex';
+            toggleLoginMode(mode);
+        }
+
+        function toggleLoginMode(mode) {
+            const userForm = document.getElementById('login-form-user');
+            const adminForm = document.getElementById('login-form-admin');
+            const userTab = document.getElementById('tab-user');
+            const adminTab = document.getElementById('tab-admin');
+
+            if (mode === 'user') {
+                userForm.style.display = 'block';
+                adminForm.style.display = 'none';
+                userTab.classList.add('active-tab');
+                adminTab.classList.remove('active-tab');
+            } else {
+                userForm.style.display = 'none';
+                adminForm.style.display = 'block';
+                userTab.classList.remove('active-tab');
+                adminTab.classList.add('active-tab');
+            }
+        }
+
+        function switchModal(closeId, openId) {
+            closeModal(closeId);
+            document.getElementById(openId).style.display = 'flex';
         }
 
         /* --- AUTH --- */
@@ -1101,7 +1196,7 @@
             if (res.ok) closeModal('reg-modal');
         }
 
-        // Replace the existing userLogin()
+        // REPLACE userLogin
         async function userLogin() {
             const res = await authFetch(`${API_URL}/login`, {
                 method: 'POST',
@@ -1111,34 +1206,52 @@
             const data = await res.json();
             if (res.ok) {
                 currentUser = { username: data.username, _id: data.userId };
-                localStorage.setItem('userToken', data.token); // <--- SAVE TOKEN
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('user-view').style.display = 'flex';
-                switchUserPage('home');
+                localStorage.setItem('userToken', data.token);
+
+                // Save minimal user details to sustain session on refresh
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('userId', data.userId);
+
+                closeModal('login-modal'); // Close popup
+                updateNavigation(); // Show hidden links
+
+                // Optional: clear inputs
+                document.getElementById('u-user').value = '';
+                document.getElementById('u-pass').value = '';
+
+                alert("Welcome Back, " + currentUser.username);
             }
             else alert(data.message);
         }
 
-        // Replace the existing adminLogin()
+
+        // REPLACE adminLogin
         async function adminLogin() {
             const username = document.getElementById('a-user').value;
             const password = document.getElementById('a-pass').value;
+            const securityKey = document.getElementById('a-key').value; // <--- GET VALUE
 
-            // Send credentials to backend instead of checking them here
             const res = await authFetch(`${API_URL}/admin-login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password, securityKey }) // <--- SEND KEY
             });
 
             const data = await res.json();
+
             if (res.ok) {
-                localStorage.setItem('adminToken', data.token); // <--- SAVE ADMIN TOKEN
-                document.getElementById('auth-section').style.display = 'none';
+                localStorage.setItem('adminToken', data.token);
+                closeModal('login-modal');
+                document.getElementById('user-view').style.display = 'none';
                 document.getElementById('admin-view').style.display = 'flex';
+
+                // Clear sensitive inputs immediately
+                document.getElementById('a-pass').value = '';
+                document.getElementById('a-key').value = '';
+
                 switchAdminTab('products');
             } else {
-                alert("Invalid Admin Credentials");
+                alert(data.message); // Will say "Invalid Security Key" if key is wrong
             }
         }
 
@@ -1168,11 +1281,19 @@
         function prevSlide() { showSlide((currentSlide - 1 + heroImages.length) % heroImages.length); }
 
         /* --- USER NAVIGATION & CONTENT --- */
+        // Replace the existing switchUserPage function with this one
         async function switchUserPage(page) {
+            // List of pages that require login
+            const restrictedPages = ['recordings', 'store', 'regs', 'orders', 'profile'];
+
+            if (restrictedPages.includes(page) && !currentUser) {
+                openLoginModal('user');
+                return;
+            }
+
             document.querySelectorAll('.user-page').forEach(p => p.style.display = 'none');
             document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active-nav'));
 
-            // Handle element existence safely
             const viewEl = document.getElementById(`view-${page}`);
             if (viewEl) viewEl.style.display = 'block';
 
@@ -1181,6 +1302,7 @@
 
             window.scrollTo(0, 0);
 
+            // Load data
             if (page === 'home') { loadHome(); loadHeroImages(); }
             if (page === 'store') { loadStore(); loadLatestReleases(); }
             if (page === 'orders') { loadOrders(); }
@@ -1552,6 +1674,11 @@
 
         // Replace the existing openCampRegModal function
         async function openCampRegModal() {
+            if (!currentUser) {
+                alert("Please login to register for the camp.");
+                openLoginModal('user');
+                return;
+            }
             // Just open the modal normally, no checks needed for UI blocking
             document.getElementById('camp-reg-modal').style.display = 'flex';
             document.getElementById('reg-full-view').style.display = 'none'; // Ensure error view is hidden
@@ -2413,4 +2540,3 @@
 
 
 </html>
-
