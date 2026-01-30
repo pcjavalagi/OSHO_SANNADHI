@@ -12,14 +12,15 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit'); // Security feature
-
 const app = express();
 const port = process.env.PORT || 3000;
 
 // --- CONFIGURATION ---
 const uri = process.env.MONGO_URI;
 const SECRET_KEY = process.env.JWT_SECRET;
+const ADMIN_SECURITY_KEY = process.env.ADMIN_SECURITY_KEY;
 const DB_NAME = "osho_db";
+
 
 if (!uri || !SECRET_KEY) {
     console.error("CRITICAL ERROR: Missing MONGO_URI or JWT_SECRET in .env file");
@@ -102,6 +103,7 @@ async function run() {
         // Collections
         const productsCol = db.collection("products");
         const usersCol = db.collection("users");
+        const adminsCol = db.collection("admins");
         const insightsCol = db.collection("insights");
         const glimpsesCol = db.collection("glimpses");
         const messagesCol = db.collection("messages");
@@ -203,20 +205,6 @@ console.log("✅ Database Indexes Verified");
             }
         });
 
-        app.post('/api/admin-login', authLimiter, (req, res) => {
-            try {
-                const { username, password } = req.body;
-                // Secure check using ENV variables
-                if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
-                    const token = jwt.sign({ username: username, role: 'admin' }, SECRET_KEY, { expiresIn: '2h' });
-                    res.status(200).json({ message: "Admin Login successful", token });
-                } else {
-                    res.status(401).json({ message: "Invalid Admin Credentials" });
-                }
-            } catch (e) {
-                res.status(500).json({ message: "Server Error" });
-            }
-        });
 
         // 2. USER PROFILE
         app.get('/api/users/:id', authenticateToken, async (req, res) => {
@@ -583,6 +571,49 @@ console.log("✅ Database Indexes Verified");
             } catch(e) { res.status(500).json({ message: "Checkout Failed" }); }
         });
 
+// --- ADMIN LOGIN ROUTE (FIXED) ---
+app.post('/api/admin-login', async (req, res) => {
+    try {
+        const { username, password, securityKey } = req.body;
+
+        // 1. Validate against .env variables
+        const isValidUser = (username === process.env.ADMIN_USERNAME);
+        const isValidPass = (password === process.env.ADMIN_PASSWORD);
+        const isValidKey = (securityKey === process.env.ADMIN_SECURITY_KEY);
+
+        if (!isValidUser || !isValidPass || !isValidKey) {
+            return res.status(401).json({ message: "Invalid Admin Credentials or Security Key" });
+        }
+
+        // 2. Ensure Admin exists in the Database (required for other admin-only routes)
+        let admin = await adminsCol.findOne({ username: username });
+        
+        if (!admin) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const result = await adminsCol.insertOne({
+                username,
+                password: hashedPassword,
+                role: 'admin',
+                createdAt: new Date()
+            });
+            admin = { _id: result.insertedId };
+        }
+
+        // 3. Generate Token
+        const token = jwt.sign(
+            { id: admin._id, role: 'admin' }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '12h' }
+        );
+
+        res.json({ token, message: "Admin Login Successful" });
+
+    } catch (e) {
+        console.error("Admin Login Error:", e);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
         app.get('/api/orders', authenticateToken, async (req, res) => {
             try {
                 const { userId, admin } = req.query;
@@ -690,6 +721,5 @@ console.log("✅ Database Indexes Verified");
 
 
 run().catch(console.dir);
-
 
 
