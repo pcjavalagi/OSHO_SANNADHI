@@ -20,7 +20,7 @@
             if (loader) loader.style.display = 'flex';
 
             try {
-                const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+                const token = sessionStorage.getItem('adminToken') || sessionStorage.getItem('userToken');
                 const headers = { 'Content-Type': 'application/json', ...options.headers };
 
                 if (options.body instanceof FormData) delete headers['Content-Type'];
@@ -375,7 +375,12 @@
             </div>
 
             <div id="adm-tab-camp" style="display:none;">
-                <div class="admin-section-head">Camp Information</div>
+                <div class="admin-section-head">
+                    Camp Information
+                    <button class="refresh-btn" onclick="loadCampAdmin()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
                 <div class="admin-card">
 
                     <div class="admin-stat-box">
@@ -704,9 +709,34 @@
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-primary"
-                        style="padding: 15px 40px; font-size:1.1rem; position:relative; z-index:10;"
-                        onclick="openCampRegModal()">Register for Camp</button>
+                    <div id="voice-interface-layer"
+                        style="display:none; background: #fff5ff; border: 1px solid #8e44ad; padding: 15px; border-radius: 12px; margin-top: 15px; animation: fadeIn 0.3s;">
+                        <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
+                            <i class="fas fa-microphone-alt fa-beat" style="color:#8e44ad; font-size:1.5rem;"></i>
+                            <span id="voice-status-text" style="font-weight:bold; color:#8e44ad;">Initializing...</span>
+                        </div>
+
+                        <div id="spoken-details-display"
+                            style="font-size:0.9rem; background:white; padding:10px; border-radius:8px; border:1px solid #eee; margin-bottom:10px; min-height:60px;">
+                            <em>Speak your details clearly...</em>
+                        </div>
+
+                        <p style="font-size:0.75rem; color:#666; font-style:italic;">
+                            <i class="fas fa-user-friends"></i> Note: Recommended for 1 or 2 person booking.
+                        </p>
+                    </div>
+
+                    <div id="camp-action-buttons"
+                        style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" style="padding: 15px 40px; font-size:1.1rem;"
+                            onclick="openCampRegModal()">Register for Camp</button>
+
+                        <button id="voice-reg-btn" class="btn btn-outline"
+                            style="display:none; padding: 15px 30px; font-size:1.1rem; background:#f9ebf9; border-color:#8e44ad; color:#8e44ad;"
+                            onclick="startVoiceRegistration()">
+                            <i class="fas fa-microphone"></i> Register via Voice
+                        </button>
+                    </div>
                 </div>
 
 
@@ -961,7 +991,7 @@
                 <p><strong>Jayaram:</strong> +91 91643 85551</p>
                 <p><i class="fas fa-envelope"></i> allamapriya@gmail.com</p>
             </div>
-                        <hr>
+            <hr>
             <h5>Kindly login and send the message as we may not be able to address the general messages.</h5>
             <hr>
             <br>
@@ -1094,11 +1124,9 @@
                 document.getElementById('admin-view').style.display = 'none';
 
                 // Check if token exists to auto-login
-                const token = localStorage.getItem('userToken');
+                const token = sessionStorage.getItem('userToken');
                 if (token) {
-                    // Optional: You could fetch profile here to verify token
-                    currentUser = { _id: localStorage.getItem('userId'), username: localStorage.getItem('username') }; // Simple restore
-                    updateNavigation();
+                    currentUser = { _id: sessionStorage.getItem('userId'), username: sessionStorage.getItem('username') }; // Simple restore                    updateNavigation();
                 }
 
                 loadHome();
@@ -1210,11 +1238,10 @@
             const data = await res.json();
             if (res.ok) {
                 currentUser = { username: data.username, _id: data.userId };
-                localStorage.setItem('userToken', data.token);
-
+                sessionStorage.setItem('userToken', data.token);
                 // Save minimal user details to sustain session on refresh
-                localStorage.setItem('username', data.username);
-                localStorage.setItem('userId', data.userId);
+                sessionStorage.setItem('username', data.username);
+                sessionStorage.setItem('userId', data.userId);
 
                 closeModal('login-modal'); // Close popup
                 updateNavigation(); // Show hidden links
@@ -1244,7 +1271,7 @@
             const data = await res.json();
 
             if (res.ok) {
-                localStorage.setItem('adminToken', data.token);
+                sessionStorage.setItem('adminToken', data.token);
                 closeModal('login-modal');
                 document.getElementById('user-view').style.display = 'none';
                 document.getElementById('admin-view').style.display = 'flex';
@@ -1261,10 +1288,9 @@
 
         // Update logout to clear tokens
         function logout() {
-            localStorage.clear();
+            sessionStorage.clear();
             location.reload();
         }
-
         /* --- SLIDER --- */
         async function loadHeroImages() {
             const res = await authFetch(`${API_URL}/hero-images`);
@@ -2525,7 +2551,7 @@
                     i + 1,
                     r.username,
                     r.phone,
-                    r.roomType || 'Standard', // User Preference
+                    (r.roomType ? r.roomType.replace(/\s*\(\d+\)/, '') : 'Standard'),
                     r.assignedRoomName || 'Not Assigned', // Actual Room
                     '' // Blank column for Amount Paid manual entry
                 ]),
@@ -2539,9 +2565,216 @@
             doc.save('Camp_Registrations_Report.pdf');
         }
 
+
+        // ==========================================
+        // VOICE REGISTRATION LOGIC
+        // ==========================================
+
+        // Setup Speech APIs
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const synth = window.speechSynthesis;
+
+        // Helper: Bot Speaks
+        function speakVoice(text) {
+            return new Promise(resolve => {
+                synth.cancel(); // FIX 1: Clear previous queue to prevent the browser from freezing
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-IN'; // Indian English works best for local names/accents
+                utterance.rate = 0.9;     // Slightly slower for clarity
+
+                // FIX 2: Resolve on both end and error so the Promise never hangs indefinitely
+                utterance.onend = resolve;
+                utterance.onerror = resolve;
+
+                synth.speak(utterance);
+            });
+        }
+
+        // Helper: Bot Listens
+        function listenVoice() {
+            return new Promise((resolve, reject) => {
+                if (!SpeechRecognition) {
+                    alert("Voice recognition is not supported in this browser. Please use Chrome or Edge.");
+                    return resolve(""); // Resolve empty instead of rejecting to keep flow alive
+                }
+
+                try {
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'en-IN';
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+
+                    recognition.onresult = (event) => {
+                        resolve(event.results[0][0].transcript);
+                    };
+
+                    recognition.onerror = (event) => {
+                        console.warn("Recognition Error:", event.error);
+                        if (event.error === 'not-allowed') {
+                            alert("Microphone permission denied. Voice registration stopped.");
+                            reject(event.error);
+                        } else {
+                            // FIX 3: For 'no-speech' (silence), resolve empty so the loop can retry or proceed
+                            resolve("");
+                        }
+                    };
+
+                    // FIX 4: Failsafe. Sometimes it just ends without hitting result or error.
+                    recognition.onend = () => {
+                        resolve("");
+                    };
+
+                    recognition.start();
+                } catch (e) {
+                    console.error("Failed to start recognition:", e);
+                    resolve("");
+                }
+            });
+        }
+
+        // Helper: Ask and Listen loop
+        async function askQuestion(question) {
+            await speakVoice(question);
+
+            // FIX 5: Add a small 400ms buffer so the mic doesn't pick up the end of the bot's own speech
+            await new Promise(r => setTimeout(r, 400));
+
+            try {
+                const answer = await listenVoice();
+                return answer ? answer.toLowerCase() : "";
+            } catch (e) {
+                console.error("Speech Error:", e);
+                throw e; // Throw to stop the parent function (startVoiceRegistration) if permission is denied
+            }
+        }
+
+        async function startVoiceRegistration() {
+            if (!currentUser) {
+                alert("Please login first to use Voice Registration.");
+                openLoginModal('user');
+                return;
+            }
+
+            // UI Elements
+            // UI Elements
+            const btnContainer = document.getElementById('camp-action-buttons');
+            const displayPanel = document.getElementById('voice-interface-layer');
+            const statusText = document.getElementById('voice-status-text');
+            const detailsList = document.getElementById('spoken-details-display');
+
+            // Toggle UI
+            btnContainer.style.display = 'none';
+            displayPanel.style.display = 'block';
+            detailsList.innerHTML = "<em>Starting...</em>";
+
+            try {
+                // 1. Ask for Number of People
+                statusText.innerText = "Listening for count...";
+                let numAns = await askQuestion("Welcome. How many people are you registering?");
+
+                const numMap = { "one": 1, "two": 2, "three": 3, "four": 4, "five": 5 };
+                let num = 1;
+                let matchedNumber = numAns.match(/\d+/);
+                if (matchedNumber) num = parseInt(matchedNumber[0]);
+                else { for (let word in numMap) { if (numAns.toLowerCase().includes(word)) num = numMap[word]; } }
+
+                detailsList.innerHTML = `<strong>Total People:</strong> ${num}<hr style="margin:5px 0">`;
+                let participants = [];
+
+                // 2. Loop through participants
+                for (let i = 0; i < num; i++) {
+                    statusText.innerText = `Person ${i + 1}: Name?`;
+                    let name = await askQuestion(`Full name of person ${i + 1}?`);
+                    name = name.replace(/\b\w/g, l => l.toUpperCase());
+
+                    statusText.innerText = `Person ${i + 1}: Phone?`;
+                    let phoneAns = await askQuestion(`Phone number for ${name}?`);
+                    let phone = phoneAns.replace(/\D/g, '').substring(0, 10);
+
+                    statusText.innerText = `Person ${i + 1}: Type?`;
+                    let typeAns = await askQuestion(`Is ${name} a first timer or repeater?`);
+                    let type = typeAns.toLowerCase().includes("repeat") ? "Repeater" : "First Timer";
+
+                    // Update UI list live
+                    detailsList.innerHTML += `<div><strong>${i + 1}. ${name}</strong> (${phone}) - ${type}</div>`;
+
+                    participants.push({
+                        userId: currentUser._id,
+                        username: name,
+                        phone: phone || currentUser.phone,
+                        type: type,
+                        roomType: "Normal (Rs. 5000)",
+                        specialReq: "Registered via Voice Assistant",
+                        confirmation: "JAI OSHO"
+                    });
+                }
+
+                // 3. Final Confirmation
+                statusText.innerText = "Confirming...";
+                statusText.style.color = "#d35400";
+                let confirmAns = await askQuestion("Say JAI OSHO to confirm registration, or say NO to cancel.");
+
+                if (confirmAns.toLowerCase().includes("jai") || confirmAns.toLowerCase().includes("osho")) {
+                    statusText.innerText = "Submitting...";
+                    statusText.style.color = "green";
+
+                    let successCount = 0;
+                    for (let p of participants) {
+                        const res = await authFetch(`${API_URL}/camp-register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(p)
+                        });
+                        if (res.ok) successCount++;
+                    }
+
+                    if (successCount > 0) {
+                        await speakVoice(`Successfully registered ${successCount} person. Jai Osho.`);
+                        alert(`Success! ${successCount} person(s) registered.`);
+                        loadHome();
+                    }
+                } else {
+                    await speakVoice("Registration cancelled.");
+                    alert("Cancelled by user.");
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert("Voice interaction stopped.");
+            } finally {
+                // Reset UI
+                btnContainer.style.display = 'flex';
+                displayPanel.style.display = 'none';
+                statusText.style.color = "#8e44ad";
+            }
+        }
+
+
+        // --- AUTO LOGOUT ON INACTIVITY ---
+        let inactivityTimer;
+        const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+
+            // Only start the countdown if someone is actually logged in
+            if (sessionStorage.getItem('userToken') || sessionStorage.getItem('adminToken')) {
+                inactivityTimer = setTimeout(() => {
+                    alert("You have been automatically logged out due to inactivity.");
+                    logout(); // Triggers your existing logout function
+                }, INACTIVITY_LIMIT);
+            }
+        }
+
+        // Listen for user interactions to reset the timer
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(event => {
+            document.addEventListener(event, resetInactivityTimer, true);
+        });
+
+        // Initialize the timer when the page first loads
+        window.addEventListener('load', resetInactivityTimer);
+
     </script>
 </body>
 
-
 </html>
-
