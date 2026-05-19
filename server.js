@@ -117,6 +117,8 @@ async function run() {
         const movementsCol = db.collection("movements");
         const roomsCol = db.collection("rooms");
         const recordingsCol = db.collection("recordings");
+        const eventsCol = db.collection("events"); 
+
 
             // ... inside run() function, after defining collections ...
 
@@ -364,8 +366,14 @@ console.log("✅ Database Indexes Verified");
                 if(phone) updateFields.phone = phone;
                 if(type) updateFields.type = type;
 
+                // NEW: Allow owner to set 'Cancellation Requested', Admin can set anything
+                if (status) {
+                    if (isAdmin || (isOwner && status === 'Cancellation Requested')) {
+                        updateFields.status = status;
+                    }
+                }
+
                 if (isAdmin) {
-                    if(status) updateFields.status = status;
                     if(assignedRoomId) updateFields.assignedRoomId = assignedRoomId;
                     if(assignedRoomName) updateFields.assignedRoomName = assignedRoomName;
                 }
@@ -412,6 +420,7 @@ console.log("✅ Database Indexes Verified");
         createCrudRoutes('/api/techniques', techniquesCol);
         createCrudRoutes('/api/insights', insightsCol);
         createCrudRoutes('/api/glimpses', glimpsesCol);
+        createCrudRoutes('/api/events', eventsCol);
 
         // 6. MEDIA UPLOAD (Fixed for Large Files & Memory)
         app.post('/api/upload-url', verifyAdmin, async (req, res) => {
@@ -486,6 +495,7 @@ console.log("✅ Database Indexes Verified");
                 res.status(200).json(data);
             } catch(e) { res.status(500).json({message: "Error"}); }
         });
+
 
         app.delete('/api/media/:id', verifyAdmin, async (req, res) => {
             try {
@@ -705,6 +715,15 @@ app.post('/api/admin-login', async (req, res) => {
                 if (result.deletedCount > 0) console.log(`Deleted ${result.deletedCount} old recordings.`);
             } catch (e) { console.error("Auto-delete error:", e); }
         }, 3600000); // 1 Hour
+
+// --- SECURE PORTAL CHECK ---
+app.get('/api/verify-portal', (req, res) => {
+    const secretValue = req.query.secret;
+    if (secretValue === "Osho_Jai123") {
+        return res.json({ authorized: true });
+    }
+    res.json({ authorized: false });
+});
 
         // Start Server
         app.listen(port, () => {
