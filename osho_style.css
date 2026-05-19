@@ -50,6 +50,11 @@
             text-align: justify;
         }
 
+
+#name_tag {
+    text-align: center;
+}
+
         /* --- UTILITIES --- */
         .container {
             width: 100%;
@@ -69,6 +74,10 @@
             transition: all 0.3s ease;
             text-align: center;
         }
+
+#user-events-grid:hover {
+    animation-play-state: paused !important;
+}
 
         .btn-primary {
             background: var(--primary);
@@ -306,29 +315,41 @@
             }
         }
 
-.card-waiting {
-    background-color: #fff0f0 !important; /* Light Red */
-    border: 2px solid #e74c3c !important;
-}
+        .card-waiting {
+            background-color: #fff0f0 !important;
+            /* Light Red */
+            border: 2px solid #e74c3c !important;
+        }
 
-.card-rejected {
-    background-color: #ffe6e6 !important;
-    border: 2px solid #c0392b !important;
-    opacity: 0.7;
-}
+        .card-rejected {
+            background-color: #ffe6e6 !important;
+            border: 2px solid #c0392b !important;
+            opacity: 0.7;
+        }
 
-.status-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    display: inline-block;
-    margin-top: 5px;
-}
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 5px;
+        }
 
-.status-waiting-badge { background: #e74c3c; color: white; }
-.status-confirmed-badge { background: #27ae60; color: white; }
-.status-rejected-badge { background: #333; color: white; }
+        .status-waiting-badge {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .status-confirmed-badge {
+            background: #27ae60;
+            color: white;
+        }
+
+        .status-rejected-badge {
+            background: #333;
+            color: white;
+        }
 
         /* --- HERO --- */
         .hero {
@@ -351,7 +372,6 @@
             left: 0;
             width: 100%;
             height: 100%;
-            /* Task 2: Fit whole image */
             background-size: 100% 100%;
             background-position: center center;
             background-repeat: no-repeat;
@@ -479,7 +499,7 @@
         #auth-section {
             display: none;
             height: 100vh;
-            background: linear-gradient(175deg, #7f2b2b  0%, #800000 100%);
+            background: linear-gradient(175deg, #7f2b2b 0%, #800000 100%);
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -806,12 +826,14 @@
             background: #ccc;
         }
 
-.store-card img {
-    width: 100%;
-    height: 160px;
-    object-fit: contain; /* FIX: Shows full image */
-    background: #fff;    /* Optional: Cleaner look for transparent images */
-}
+        .store-card img {
+            width: 100%;
+            height: 160px;
+            object-fit: contain;
+            /* FIX: Shows full image */
+            background: #fff;
+            /* Optional: Cleaner look for transparent images */
+        }
 
         .card-body {
             padding: 15px;
@@ -1206,13 +1228,15 @@
             z-index: 2;
         }
 
-.gallery-item img {
-    width: 100%;
-    height: auto !important;
-    display: block;
-    object-fit: contain; /* FIX: Ensures the full image is shown */
-    border-radius: 4px; /* Optional: Adds a slight curve to corners */
-}
+        .gallery-item img {
+            width: 100%;
+            height: auto !important;
+            display: block;
+            object-fit: contain;
+            /* FIX: Ensures the full image is shown */
+            border-radius: 4px;
+            /* Optional: Adds a slight curve to corners */
+        }
 
         /* Lightbox Modal (Same as before) */
         #lightbox-modal {
@@ -1230,16 +1254,19 @@
             animation: fadeIn 0.3s ease;
         }
 
-#lightbox-content {
-    max-width: 90vw; /* Changed to viewport width for better mobile fit */
-    max-height: 90vh;
-    width: auto;     /* FIX: Allows width to adjust naturally */
-    height: auto;    /* FIX: Allows height to adjust naturally */
-    border-radius: 4px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-    object-fit: contain; 
-    animation: zoomIn 0.3s ease;
-}
+        #lightbox-content {
+            max-width: 90vw;
+            /* Changed to viewport width for better mobile fit */
+            max-height: 90vh;
+            width: auto;
+            /* FIX: Allows width to adjust naturally */
+            height: auto;
+            /* FIX: Allows height to adjust naturally */
+            border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            object-fit: contain;
+            animation: zoomIn 0.3s ease;
+        }
 
         .lightbox-close-btn {
             position: absolute;
@@ -1262,12 +1289,12 @@
 
 
 
-/* =========================================
+        /* =========================================
    UI FIXES & UPDATES (Add to bottom of file)
    ========================================= */
 
-/* --- 1. Fix "Images Not Fitting" (Global Card Fix) --- */
-/* This targets all cards (Techniques, Insights, Movements) 
+        /* --- 1. Fix "Images Not Fitting" (Global Card Fix) --- */
+        /* This targets all cards (Techniques, Insights, Movements) 
 
 
 .tech-card img, 
@@ -1280,203 +1307,573 @@
 }
 
 */
-/* ----------------------------------------- */
+        /* ----------------------------------------- */
 
-/* --- 1. Fix "Images Not Fitting" (Global Card Fix) --- */
-/* This targets all cards (Techniques, Insights, Movements) */
-/* Update these classes to use 'contain' instead of 'cover' */
-.tech-card img, 
-.video-card img, 
-.store-card img {
-    width: 100%;
-    height: 200px; /* Keeps card height uniform */
-    object-fit: contain !important; /* FIX: Shows full image without cutting */
-    background-color: #786969; /* Adds a clean background for empty space */
-    border-radius: 8px 8px 0 0;
-}
+        /* .tech-card img,
+        .video-card img,
+        .store-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: contain !important;
+            background-color: #786969;
+            border-radius: 8px 8px 0 0;
+        } */
 
+        .tech-card img,
+        .video-card img,
+        .store-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover !important; /* Changed from contain to cover to fill space */
+            background-color: transparent; /* Removed the gray background */
+            border-radius: 8px 8px 0 0;
+        }
 
-/* Exception: If you want to ensure Store/Products are NOT cut, use 'contain' */
-.store-card img {
-    object-fit: contain !important;
-}
+        /* Exception: If you want to ensure Store/Products are NOT cut, use 'contain' */
+        .store-card img {
+            object-fit: contain !important;
+        }
 
-/* --- 2. Camp Movements Section (Make it look like other sections) --- */
-.video-card {
-    background: white;
-    border-radius: 12px; /* Smooth rounded corners */
-    overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Soft shadow */
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid #eee; /* Clean border */
-    display: flex;
-    flex-direction: column;
-    height: 100%; /* Ensures cards in the same row are equal height */
-}
+        /* --- 2. Camp Movements Section (Make it look like other sections) --- */
+        .video-card {
+            background: white;
+            border-radius: 12px;
+            /* Smooth rounded corners */
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            /* Soft shadow */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #eee;
+            /* Clean border */
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            /* Ensures cards in the same row are equal height */
+        }
 
-.video-card:hover {
-    transform: translateY(-5px); /* Lift effect on hover */
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
-}
+        .video-card:hover {
+            transform: translateY(-5px);
+            /* Lift effect on hover */
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+        }
 
-.video-card .card-body {
-    padding: 20px;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
+        .video-card .card-body {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
 
-.video-card h4 {
-    color: var(--primary);
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    font-weight: 600;
-}
+        .video-card h4 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
 
-.video-card p {
-    color: #666;
-    font-size: 0.9rem;
-    line-height: 1.5;
-}
+        .video-card p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
 
-/* --- 3. Gallery Fix (Masonry - Pinterest Style) --- */
-/* This ensures images fit naturally without being cut */
-.gallery-grid {
-    column-count: 3;
-    column-gap: 24px;
-    display: block;
-}
+        /* --- 3. Gallery Fix (Masonry - Pinterest Style) --- */
+        /* This ensures images fit naturally without being cut */
+        .gallery-grid {
+            column-count: 3;
+            column-gap: 24px;
+            display: block;
+        }
 
-.gallery-item {
-    break-inside: avoid;
-    margin-bottom: 24px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: var(--shadow-soft);
-    overflow: hidden;
-    transition: transform 0.3s ease;
-}
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
 
-.gallery-item:hover {
-    transform: translateY(-5px);
-}
+        .gallery-item:hover {
+            transform: translateY(-5px);
+        }
 
-.gallery-item img {
-    width: 100%;
-    height: auto !important; /* KEY FIX: Allows natural height, prevents cutting */
-    display: block;
-    border-radius: 0;
-}
+        .gallery-item img {
+            width: 100%;
+            height: auto !important;
+            /* KEY FIX: Allows natural height, prevents cutting */
+            display: block;
+            border-radius: 0;
+        }
 
-/* Mobile Adjustments for Gallery */
-@media (max-width: 900px) {
-    .gallery-grid { column-count: 2; }
-}
-@media (max-width: 600px) {
-    .gallery-grid { column-count: 1; }
-}
+        /* Mobile Adjustments for Gallery */
+        @media (max-width: 900px) {
+            .gallery-grid {
+                column-count: 2;
+            }
+        }
 
-/* =========================================
+        @media (max-width: 600px) {
+            .gallery-grid {
+                column-count: 1;
+            }
+        }
+
+        /* =========================================
    FIX: Stop Images from Cutting
    (Meditation Techniques & Sannadhi/Glimpses)
    ========================================= */
 
 /* 1. Meditation Techniques Fix */
-.tech-card img {
-    width: 100%;
-    height: 250px; /* Keep the height fixed for a neat grid */
-    object-fit: contain !important; /* KEY FIX: Shows the full image inside the box */
-    background-color: #ffffff; /* White background for any empty space */
-}
+        .tech-card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover !important; /* Changed to cover */
+            background-color: transparent; 
+        }
 
 /* 2. Osho Sannadhi / Glimpses Fix */
-.glimpse-card img, 
-.alternating-item img {
-    width: 100%;
-    height: auto; /* Let height adjust naturally so nothing is cut */
-    max-height: 400px; /* Limit max height if image is too tall */
-    object-fit: contain !important;
-    background-color: #ffffff;
+        .glimpse-card img,
+        .alternating-item img {
+            width: 100%;
+            height: 100%;
+            max-height: 400px;
+            object-fit: cover !important; /* Changed to cover */
+            background-color: transparent;
+            border-radius: var(--radius-md);
+        }
+
+        /* Optional: If Sannadhi is using the generic video/movements card */
+        .video-card img {
+            object-fit: contain !important;
+            background: #000;
+            /* Black background looks better for video thumbnails */
+        }
+
+
+        .warning-note {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            animation: fadeIn 1s;
+        }
+
+        .warning-note i {
+            font-size: 1.2rem;
+        }
+
+        /* --- NEW LOGIN UI --- */
+        .auth-card-modal {
+            max-width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            padding: 40px 30px;
+        }
+
+        .auth-tab {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: 0.3s;
+        }
+
+        .auth-tab.active-tab {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .btn-login-ui {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-login-ui:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-user-login {
+            background: linear-gradient(135deg, #800000 0%, #a52a2a 100%);
+            color: white;
+        }
+
+        .btn-admin-login {
+            background: white;
+            border: 1px solid #ddd;
+            color: #555;
+        }
+
+
+        /* =============================================
+   MOBILE UI ENHANCEMENT BLOCK
+   Add to bottom of osho_style.css
+   ============================================= */
+
+        /* --- ENHANCED THEME VARIABLES --- */
+        :root {
+            --gradient-primary: linear-gradient(135deg, #800000 0%, #c0392b 100%);
+            --gradient-warm: linear-gradient(135deg, #8B0000 0%, #B22222 60%, #DC143C 100%);
+            --shadow-card: 0 4px 20px rgba(128, 0, 0, 0.12);
+            --shadow-float: 0 8px 32px rgba(128, 0, 0, 0.18);
+            --radius-pill: 50px;
+            --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- GLOBAL MOBILE BODY --- */
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 0px;
+                /* Space for bottom nav */
+            }
+        }
+
+
+
+
+/* ---- SPLASH SCREEN ---- */
+#splash-screen {
+  background: linear-gradient(160deg, #6b0000 0%, #b22222 50%, #800000 100%) !important;
 }
 
-/* Optional: If Sannadhi is using the generic video/movements card */
-.video-card img {
-    object-fit: contain !important;
-    background: #000; /* Black background looks better for video thumbnails */
+#splash-screen img {
+  width: 160px !important;
+  border-radius: 50%;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+  animation: zoomIn 1s ease-out, splashPulse 2s ease-in-out 1s infinite !important;
+}
+
+@keyframes splashPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35); }
+  70%  { box-shadow: 0 0 0 22px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+#splash-screen h2 {
+  font-size: 2.2rem !important;
+  letter-spacing: 4px !important;
+}
+
+#splash-screen h2::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.6);
+  margin: 10px auto 0;
+  border-radius: 2px;
+}
+
+#splash-screen p {
+  font-size: 1.1rem !important;
+  letter-spacing: 1px;
+  opacity: 0;
+  animation: fadeIn 2s ease-in 0.5s forwards !important;
 }
 
 
-.warning-note {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 30px;
-    text-align: center;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    animation: fadeIn 1s;
-}
 
-.warning-note i {
-    font-size: 1.2rem;
-}
-
-/* --- NEW LOGIN UI --- */
+/* ---- USER & ADMIN LOGIN MODAL ---- */
 .auth-card-modal {
-    max-width: 400px;
-    border-radius: 20px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-    padding: 40px 30px;
+  border-radius: 28px !important;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25) !important;
+  padding: 40px 30px !important;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  animation: slideUpSheet 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideUpSheet {
+  from { transform: translateY(60px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 .auth-tab {
-    background: none;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-    font-weight: 600;
-    color: #999;
-    border-bottom: 3px solid transparent;
-    transition: 0.3s;
+  padding: 10px 24px !important;
+  border-radius: 30px !important;
+  border: none !important;
+  font-size: 0.9rem !important;
+  transition: all 0.25s ease !important;
+  color: #aaa !important;
+  border-bottom: none !important;
 }
 
 .auth-tab.active-tab {
-    color: var(--primary);
-    border-bottom: 3px solid var(--primary);
-}
-
-.btn-login-ui {
-    padding: 8px 20px;
-    border: none;
-    border-radius: 30px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-login-ui:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, #800000, #c0392b) !important;
+  color: white !important;
+  border-bottom: none !important;
+  box-shadow: 0 4px 14px rgba(128, 0, 0, 0.3);
 }
 
 .btn-user-login {
-    background: linear-gradient(135deg, #800000 0%, #a52a2a 100%);
-    color: white;
+  color: white !important;
+  background: linear-gradient(135deg, #e25d5d 0%, #c0392b 100%) !important;
+  box-shadow: 0 6px 18px rgba(116, 32, 32, 0.3) !important;
+  border-radius: 30px !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.btn-user-login:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 24px rgba(128, 0, 0, 0.4) !important;
 }
 
 .btn-admin-login {
-    background: white;
-    border: 1px solid #ddd;
-    color: #555;
+  border-radius: 30px !important;
+  border: 1.5px solid #ddd !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  background: white !important;
+  color: #555 !important;
 }
 
+.btn-admin-login:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+
+/* --- PROFESSIONAL SERVER DOWN UI --- */
+#server-down-screen {
+    display: none; /* Controlled by JS */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sans);
+}
+
+.sd-overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: url('https://www.transparenttextures.com/patterns/white-diamond.png'), #fdfaf6;
+    opacity: 0.98;
+}
+
+.sd-container {
+    position: relative;
+    width: 90%;
+    max-width: 600px;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.sd-card {
+    background: white;
+    padding: 40px;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(128, 0, 0, 0.1);
+    text-align: center;
+    overflow-y: auto; /* Safety for very small screens */
+}
+
+.sd-logo {
+    width: 60px;
+    margin-bottom: 15px;
+}
+
+.sd-status-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    background: #fff5f5;
+    color: var(--primary);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+}
+
+.sd-title {
+    font-family: var(--font-serif);
+    font-size: 1.8rem;
+    color: var(--text-main);
+    margin-bottom: 25px;
+    line-height: 1.2;
+}
+
+.sd-quote-box {
+    background: #fcfcfc;
+    padding: 30px;
+    border-radius: var(--radius-md);
+    position: relative;
+    border-left: 4px solid var(--primary);
+    margin-bottom: 30px;
+}
+
+.sd-icon {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    color: rgba(128, 0, 0, 0.05);
+    font-size: 2rem;
+}
+
+.sd-quote-text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #4a5568;
+    font-style: italic;
+    margin-bottom: 15px;
+    text-align: justify;
+}
+
+.sd-author {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-align: right;
+}
+
+.sd-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    border-radius: 30px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 15px -3px rgba(128, 0, 0, 0.3);
+    height: 40px;
+    width: 170px;
+    font-size: 12px;
+}
+
+.sd-btn:hover {
+    transform: translateY(-2px);
+    background: var(--primary-hover);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    .sd-card { padding: 25px 20px; }
+    .sd-title { font-size: 1.4rem; }
+    .sd-quote-text { font-size: 0.85rem; }
+    .sd-quote-box { padding: 20px; }
+}
+
+/* =========================================
+   UPCOMING EVENTS UI
+   ========================================= */
+.event-card {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+    transition: var(--transition-smooth);
+    display: flex;
+    flex-direction: column;
+    color: white;
+    position: relative;
+    border: none;
+}
+
+.event-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-hover);
+}
+
+.event-card-header {
+    padding: 20px 25px;
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.event-card-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-family: var(--font-serif);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+    line-height: 1.3;
+}
+
+.event-card-body {
+    padding: 25px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.event-card-body p {
+    margin: 0;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0.95;
+    text-align: left;
+}
+
+.event-card-body i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+    opacity: 0.8;
+}
+
+.event-desc {
+    margin-top: auto; /* Pushes description down */
+    padding-top: 15px;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: justify;
+    line-height: 1.6;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Eye-catching Gradient Color Variants for Cards */
+.event-color-1 { background: linear-gradient(135deg, #e09756, #d39064); }
+.event-color-2 { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+.event-color-3 { background: linear-gradient(135deg, #3498db, #2980b9); }
+.event-color-4 { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+
+/* Apply a subtle texture pattern to all event cards */
+.event-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+}
+
+.event-card-header, .event-card-body {
+    position: relative;
+    z-index: 1;
+}
