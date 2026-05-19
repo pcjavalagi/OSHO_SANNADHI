@@ -15,32 +15,40 @@
     <script>
 
         async function authFetch(url, options = {}) {
-            // Show Loader
             const loader = document.getElementById('global-loader');
             if (loader) loader.style.display = 'flex';
 
             try {
                 const token = sessionStorage.getItem('adminToken') || sessionStorage.getItem('userToken');
                 const headers = { 'Content-Type': 'application/json', ...options.headers };
-
                 if (options.body instanceof FormData) delete headers['Content-Type'];
                 if (token) headers['Authorization'] = `Bearer ${token}`;
 
-                const response = await fetch(url, { ...options, headers });
+                // Add a timeout so it doesn't hang forever
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 seconds timeout
 
-                // ... existing error handling ...
+                const response = await fetch(url, { ...options, headers, signal: controller.signal });
+                clearTimeout(timeoutId);
 
                 return response;
             } catch (error) {
-                console.error("Network Error:", error);
-                alert("Network error. Please try again.");
-                throw error; // Re-throw to stop subsequent code execution
+                console.error("Connection Failed:", error);
+
+                // Show the UI immediately on any network fail or timeout
+                const sdScreen = document.getElementById('server-down-screen');
+                if (sdScreen) {
+                    sdScreen.style.display = 'flex';
+                    // Hide everything else
+                    if (loader) loader.style.display = 'none';
+                    const splash = document.getElementById('splash-screen');
+                    if (splash) splash.style.display = 'none';
+                }
+                throw error;
             } finally {
-                // Hide Loader
                 if (loader) loader.style.display = 'none';
             }
         }
-
 
         // // --- HELPER: RENDER MEDIA (Image or Video) ---
         // function renderSmartMedia(url, heightStyle = "200px", className = "") {
@@ -217,6 +225,40 @@
         </div>
         <p style="margin-top:10px; color:#800000; font-weight:600;">Processing...</p>
     </div>
+
+    <div id="server-down-screen">
+        <div class="sd-overlay"></div>
+        <div class="sd-container">
+            <div class="sd-card">
+                <div class="sd-header">
+                    <div class="sd-status-badge">Maintenance Mode</div>
+                </div>
+
+                <h1 class="sd-title">We are working on it, have patience.</h1>
+                <h4 class="sd-subtitle">Thank you for your understanding and support.</h4>
+                <h5 class="sd-tip">Please check your network connection and refrresh it once.</h5>
+
+                <div class="sd-quote-box">
+                    <i class="fas fa-quote-left sd-icon"></i>
+                    <p class="sd-quote-text">
+                        Patience is not passive waiting, but a profound trust in existence and a "fragrance of trust"
+                        that allows life to unfold without inner hurry. It is the ultimate alchemy, transforming
+                        suffering into a blessing by accepting that existence moves at its own pace. True patience means
+                        allowing the "doer" within you to drop, trusting that when you are ripe, the fruits—whether
+                        inner growth or external success—will come. It is a state of loving alertness, or "patient
+                        impatience," that finds beauty in imperfections and understands that the dark night always
+                        precedes the dawn.
+                    </p>
+                    <cite class="sd-author">— Osho</cite>
+                </div>
+
+                <button class="sd-btn" onclick="location.reload()">
+                    <i class="fas fa-redo"></i> Reconnect Now
+                </button>
+            </div>
+        </div>
+    </div>
+
     <style>
         @keyframes spin {
             0% {
@@ -232,7 +274,7 @@
     <div id="splash-screen">
         <img src="osho_logo.png" alt="Osho Logo">
         <h2>OSHO SANNADHI</h2>
-        <p>"Be realistic: Plan for a miracle."</p>
+        <p id="name_tag">"Be realistic: Plan for a miracle."</p>
     </div>
 
     <button onclick="topFunction()" id="scrollTopBtn" title="Go to top"><i class="fas fa-arrow-up"></i></button>
@@ -245,7 +287,7 @@
             <div class="auth-tabs"
                 style="display:none; justify-content:center; margin-bottom:20px; border-bottom:1px solid #eee;">
                 <button id="tab-user" class="auth-tab active-tab" onclick="toggleLoginMode('user')">Seeker</button>
-                <button id="tab-admin" class="auth-tab" onclick="toggleLoginMode('admin')">Admin</button>
+                <!-- <button id="tab-admin" class="auth-tab" onclick="toggleLoginMode('admin')">Admin</button> -->
             </div>
 
             <div id="login-form-user">
@@ -300,6 +342,8 @@
                         class="fas fa-box"></i> Store</button>
                 <button onclick="switchAdminTab('camp')" id="btn-adm-camp"><i class="fas fa-calendar-alt"></i> Camp
                     Details</button>
+                <button onclick="switchAdminTab('events')" id="btn-adm-events"><i class="fas fa-calendar-check"></i>
+                    Events</button>
                 <button onclick="switchAdminTab('regs')" id="btn-adm-regs"><i class="fas fa-users"></i>
                     Registrations</button>
                 <button onclick="switchAdminTab('orders')" id="btn-adm-orders"><i class="fas fa-truck"></i>
@@ -425,6 +469,24 @@
                     <p style="font-size:0.8rem; color:#7f8c8d; margin-top:10px;">* "Reset Registrations" will delete all
                         current seeker registrations for a fresh start.</p>
                 </div>
+            </div>
+
+            <div id="adm-tab-events" style="display:none;">
+                <div class="admin-section-head">Manage Events <button class="refresh-btn"
+                        onclick="loadGenericAdmin('events')"><i class="fas fa-sync-alt"></i></button></div>
+                <div class="admin-card">
+                    <h4>Add New Event</h4>
+                    <input id="new-evt-name" placeholder="Event Name">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <input id="new-evt-from" type="date" placeholder="From Date">
+                        <input id="new-evt-to" type="date" placeholder="To Date">
+                    </div>
+                    <input id="new-evt-loc" placeholder="Location">
+                    <input id="new-evt-org" placeholder="Organizer Name">
+                    <textarea id="new-evt-desc" placeholder="Brief Description" rows="3"></textarea>
+                    <button class="btn btn-primary" onclick="addEvent()">Add Event</button>
+                </div>
+                <div id="admin-events-list" class="grid-2 grid"></div>
             </div>
 
             <div id="adm-tab-rooms" style="display:none;">
@@ -666,8 +728,8 @@
                 <span id="nav-guest" style="display:flex; gap:10px;">
                     <button class="btn-login-ui btn-user-login" onclick="openLoginModal('user')"><i
                             class="fas fa-user"></i> Login</button>
-                    <button class="btn-login-ui btn-admin-login" onclick="openLoginModal('admin')"><i
-                            class="fas fa-lock"></i> Admin</button>
+                    <!-- <button class="btn-login-ui btn-admin-login" onclick="openLoginModal('admin')"><i
+                            class="fas fa-lock"></i> Admin</button> -->
                 </span>
             </div>
         </nav>
@@ -762,16 +824,19 @@
                             in the Now. So that, to rise from suppressive life to expressive, from expressive to
                             witnessing, from witnessing consciousness to pure consciousness and awareness so that the
                             blossoming of tremendous insight, intelligence into the beauty of life. So that the
-                            realization-‘I am not the doer; God/ existence is all-doer.<br>
-                            <br>
-                            Osho Sannidhi is a place that belong to each one which has the body of any shape, may be
-                            having two,four or several legs, may be moving or unmoving,walking or flying, jumping or
-                            crawling, dwelling in space or in the air, fire or water, inside or on the earth and called
-                            by any name. Osho Sannidhi belongs to all those minds which may accept or dissent, have
-                            faith in anything or nothing, believe or question or no-mind. Osho Sannidhi belongs to those
-                            hearts which love to learn love, shares to learn sharing, lives to learn living., does
-                            anything and everything to keep on learning.<br>
+                            realization-‘I am not the doer; God/ existence is all-doer.
                         </p>
+                    </div>
+                </div>
+
+
+
+                <hr class="styled-hr">
+
+                <h2 class="section-header">Upcoming Events</h2>
+                <div style="overflow:hidden; padding:20px 0; width: 100%;">
+                    <div id="user-events-grid"
+                        style="display:inline-flex; gap:20px; animation:marquee 15s linear infinite; width:max-content; padding-left: 100%;">
                     </div>
                 </div>
 
@@ -916,7 +981,7 @@
             </div>
             <div
                 style="text-align:center; margin-top:15px; border-top:1px solid #444; padding-top:10px; font-size:0.8rem; color:#888;">
-                © 2026 Osho Camp. All Rights Reserved.
+                © 2026 Osho Camp. All Rights Received. Designed with ❤️ by Osho Sannadhi Team.
             </div>
         </footer>
     </div>
@@ -954,6 +1019,22 @@
                 <label style="color:var(--primary); font-weight:600; margin-top:15px; display:block;">Type "JAI OSHO" to
                     confirm</label>
                 <input type="text" id="cr-confirm" placeholder="JAI OSHO">
+
+                <div
+                    style="text-align: center; margin: 10px 0; padding: 8px; background: #fdfaf6; border-radius: 8px; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; gap: 12px;">
+                    <button id="voice-confirm-btn" type="button" class="btn"
+                        style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-size: 1.1rem; background: var(--primary); color: white; border: none; cursor: pointer; transition: 0.3s;"
+                        onclick="listenForConfirmation()">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <div style="text-align: left;">
+                        <p style="margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Tap mic &
+                            say <span style="color: var(--primary);">"JAI OSHO"</span></p>
+                        <p id="voice-confirm-status"
+                            style="margin: 0; font-size: 0.75rem; color: #7f8c8d; min-height: 14px; font-weight: 500;">
+                        </p>
+                    </div>
+                </div>
                 <div style="display:flex; gap:10px;">
                     <button class="btn btn-primary" style="flex:1" onclick="submitCampReg()">Register All</button>
                     <button class="btn btn-danger" style="flex:1" onclick="closeModal('camp-reg-modal')">Cancel</button>
@@ -992,7 +1073,8 @@
                 <p><i class="fas fa-envelope"></i> allamapriya@gmail.com</p>
             </div>
             <hr>
-            <h5>Kindly login and send the message as we may not be able to address the general messages.</h5>
+            <h5>Kindly login and send the message as we may not be able to address the general messages. As you have
+                mentioned the name and phone number we will contact you as soon as possible for any concerns.</h5>
             <hr>
             <br>
             <h4 style="margin-bottom:10px;">Send a Message</h4>
@@ -1032,7 +1114,6 @@
                 onclick="initCheckout()">Checkout</button>
         </div>
     </div>
-
     <div id="checkout-modal" class="modal">
         <div class="modal-content">
             <h3>Confirm Order</h3>
@@ -1113,28 +1194,44 @@
 
         //window.onload = () => { setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('auth-section').style.display = 'flex'; }, 3000); };
 
-
-        //---------------------------------------
-        // REPLACE window.onload
         window.onload = () => {
-            setTimeout(() => {
+            // We use an async function inside the timeout to handle the server check
+            setTimeout(async () => {
                 document.getElementById('splash-screen').style.display = 'none';
-                // Directly show user view, hide admin view, hide auth section (now modal)
                 document.getElementById('user-view').style.display = 'flex';
                 document.getElementById('admin-view').style.display = 'none';
 
-                // Check if token exists to auto-login
                 const token = sessionStorage.getItem('userToken');
                 if (token) {
-                    currentUser = { _id: sessionStorage.getItem('userId'), username: sessionStorage.getItem('username') }; // Simple restore                    updateNavigation();
+                    currentUser = { _id: sessionStorage.getItem('userId'), username: sessionStorage.getItem('username') };
+                    updateNavigation();
                 }
 
                 loadHome();
                 loadHeroImages();
+
+                // --- SECURE: Secret Admin URL Check via Backend ---
+                const urlParams = new URLSearchParams(window.location.search);
+                const secretInUrl = urlParams.get('jaiosho1');
+
+                if (secretInUrl) {
+                    try {
+                        // Ask the server if this secret matches the one in .env
+                        const response = await fetch(`/api/verify-portal?secret=${secretInUrl}`);
+                        const data = await response.json();
+
+                        if (data.authorized) {
+                            openLoginModal('admin');
+                        }
+                    } catch (error) {
+                        console.error("Portal verification failed:", error);
+                    }
+                }
+                // ------------------------------------------------
+
             }, 2500);
         };
 
-        //---------------------------------------
         function toggleAuthMode() {
             const u = document.getElementById('user-auth-box'), a = document.getElementById('admin-auth-box');
             if (u.style.display === 'none') { u.style.display = 'block'; a.style.display = 'none'; } else { u.style.display = 'none'; a.style.display = 'block'; }
@@ -1142,7 +1239,7 @@
         function openRegModal() { document.getElementById('reg-modal').style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
         function openContactModal() {
-            if (currentUser) document.getElementById('cm-name').value = currentUser.username;
+            document.getElementById('cm-name').value = '';
             document.getElementById('contact-modal').style.display = 'flex';
         }
 
@@ -1166,6 +1263,25 @@
             toggleLoginMode(mode);
         }
 
+        // function toggleLoginMode(mode) {
+        //     const userForm = document.getElementById('login-form-user');
+        //     const adminForm = document.getElementById('login-form-admin');
+        //     const userTab = document.getElementById('tab-user');
+        //     const adminTab = document.getElementById('tab-admin');
+
+        //     if (mode === 'user') {
+        //         userForm.style.display = 'block';
+        //         adminForm.style.display = 'none';
+        //         userTab.classList.add('active-tab');
+        //         adminTab.classList.remove('active-tab');
+        //     } else {
+        //         userForm.style.display = 'none';
+        //         adminForm.style.display = 'block';
+        //         userTab.classList.remove('active-tab');
+        //         adminTab.classList.add('active-tab');
+        //     }
+        // }
+
         function toggleLoginMode(mode) {
             const userForm = document.getElementById('login-form-user');
             const adminForm = document.getElementById('login-form-admin');
@@ -1175,13 +1291,13 @@
             if (mode === 'user') {
                 userForm.style.display = 'block';
                 adminForm.style.display = 'none';
-                userTab.classList.add('active-tab');
-                adminTab.classList.remove('active-tab');
+                userTab?.classList.add('active-tab');       // Added ?
+                adminTab?.classList.remove('active-tab');   // Added ?
             } else {
                 userForm.style.display = 'none';
                 adminForm.style.display = 'block';
-                userTab.classList.remove('active-tab');
-                adminTab.classList.add('active-tab');
+                userTab?.classList.remove('active-tab');    // Added ?
+                adminTab?.classList.add('active-tab');      // Added ?
             }
         }
 
@@ -1495,6 +1611,32 @@
 
             const g = await (await authFetch(`${API_URL}/glimpses`)).json();
             document.getElementById('marquee-track').innerHTML = g.map(x => `<img src="${x.img}" class="glimpse-img">`).join('');
+            // --- ADD THIS TO FETCH AND RENDER EVENTS ---
+
+            const evts = await (await authFetch(`${API_URL}/events`)).json();
+            if (evts.length === 0) {
+                document.getElementById('user-events-grid').innerHTML = `<p style="text-align:center; grid-column:1/-1; color:#777;">No upcoming events currently scheduled.</p>`;
+            } else {
+                const colors = ['event-color-1', 'event-color-2', 'event-color-3', 'event-color-4'];
+                const evtsHtml = evts.map((e, idx) => {
+                    const colorClass = colors[idx % colors.length];
+                    return `
+                    <div class="event-card ${colorClass}" style="min-width: 320px; max-width: 350px; white-space: normal;">
+                        <div class="event-card-header">
+                            <h3>${e.name}</h3>
+                        </div>
+                        <div class="event-card-body">
+                            <p><i class="fas fa-calendar-alt"></i> <strong>Date:</strong> ${e.from} → ${e.to}</p>
+                            <p><i class="fas fa-map-marker-alt"></i> <strong>Location:</strong> ${e.location}</p>
+                            <p><i class="fas fa-user-tie"></i> <strong>Organizer:</strong> ${e.organizer}</p>
+                            <div class="event-desc">${e.desc}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                document.getElementById('user-events-grid').innerHTML = evtsHtml + evtsHtml;
+            }
+
         }
 
         // async function loadMovements() {
@@ -1842,35 +1984,51 @@
                     statusStyle = "background:#333";
                     cardStyle = "border: 2px solid #333; opacity: 0.7;";
                 }
+                else if (status === 'Cancellation Requested') {
+                    statusStyle = "background:#f39c12"; // Orange
+                    cardStyle = "border: 2px solid #f39c12; opacity: 0.9;";
+                }
 
+                // FIX: Re-added the outer card layout, name, and details above the buttons
                 return `
         <div class="store-card" style="padding:20px; ${cardStyle}">
-            <div style="text-align:center; margin-bottom:15px;">
-                <i class="fas fa-user-circle" style="font-size:3rem; color:#ddd;"></i>
-            </div>
-            <h4 style="text-align:center; color:var(--primary); margin-bottom:5px;">${r.username}</h4>
-            <p style="text-align:center; color:#777; font-size:0.9rem;">${r.phone}</p>
-            
-            <div style="text-align:center; margin:10px 0; display:flex; gap:5px; justify-content:center;">
-                <span style="background:${r.type === 'First Timer' ? '#e67e22' : '#2980b9'}; color:white; padding:4px 10px; border-radius:15px; font-size:0.8rem;">${r.type}</span>
-                <span style="${statusStyle}; color:white; padding:4px 10px; border-radius:15px; font-size:0.8rem;">${status}</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span style="color:white; padding:3px 8px; border-radius:4px; font-size:0.8rem; ${statusStyle}">${status}</span>
+                <small>${new Date(r.date).toLocaleDateString()}</small>
             </div>
             
-            <p style="font-size:0.8rem; text-align:center; color:#999; margin-bottom:15px;">Registered: ${new Date(r.date).toLocaleDateString()}</p>
+            <h4 style="color:var(--primary); margin-bottom:10px;">${r.username}</h4>
+            <p style="margin-bottom:5px;"><i class="fas fa-phone"></i> ${r.phone}</p>
+            <p style="margin-bottom:5px;"><strong>Exp:</strong> ${r.type}</p>
+            <p style="margin-bottom:15px;"><strong>Room:</strong> ${r.roomType || 'Standard'}</p>
             
             <div style="display:flex; gap:10px;">
-                ${status !== 'Rejected' ? `<button class="btn btn-outline btn-sm" style="flex:1;" onclick="openEditReg('${r._id}')">Update</button>` : ''}
-                <button class="btn btn-danger btn-sm" style="flex:1;" onclick="deleteReg('${r._id}')">Cancel</button>
+                ${(status !== 'Rejected' && status !== 'Cancellation Requested') ? `<button class="btn btn-outline btn-sm" style="flex:1;" onclick="openEditReg('${r._id}')">Update</button>` : ''}
+                ${status === 'Cancellation Requested'
+                        ? `<button class="btn btn-outline btn-sm" style="flex:1; cursor:not-allowed;" disabled>Cancel Requested</button>`
+                        : `<button class="btn btn-danger btn-sm" style="flex:1;" onclick="requestCancelReg('${r._id}')">Cancel</button>`
+                    }
             </div>
-        </div>
-    `}).join('');
+        </div>`;
+            }).join('');
         }
 
 
-        async function deleteReg(id) {
-            if (!confirm("Are you sure you want to cancel this registration?")) return;
-            await authFetch(`${API_URL}/registrations/${id}`, { method: 'DELETE' });
-            loadMyRegistrations();
+        async function requestCancelReg(id) {
+            if (!confirm("Are you sure you want to request cancellation for this registration?")) return;
+
+            const res = await authFetch(`${API_URL}/registrations/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Cancellation Requested' })
+            });
+
+            if (res.ok) {
+                alert("Cancellation request sent to Admin successfully.");
+                loadMyRegistrations();
+            } else {
+                alert("Failed to send request.");
+            }
         }
 
         function openEditReg(id) {
@@ -1947,6 +2105,7 @@
             else if (t === 'history') loadOrdersAdmin(true);
             else if (t === 'messages') loadMessages();
             else if (t === 'recordings') loadGenericAdmin('recordings');
+            else if (t === 'events') loadGenericAdmin('events');
             else if (t === 'media') loadMedia();
             else loadGenericAdmin(t);
         }
@@ -2116,6 +2275,7 @@
                 let badgeHtml = `<span class="status-badge status-confirmed-badge">Confirmed</span>`;
                 let actionButtons = ``; // Start with an empty string
 
+
                 // --- 1. Status Logic & Card Styling ---
                 if (status === 'Waiting') {
                     cardClass += ' card-waiting';
@@ -2123,6 +2283,11 @@
                 } else if (status === 'Rejected') {
                     cardClass += ' card-rejected';
                     badgeHtml = `<span class="status-badge status-rejected-badge">Rejected</span>`;
+                }
+                // >> ADD THIS BLOCK <<
+                else if (status === 'Cancellation Requested') {
+                    cardClass += ' card-waiting'; // Reuse the waiting list highlight
+                    badgeHtml = `<span class="status-badge" style="background:#f39c12; color:white;">Cancel Requested</span>`;
                 }
 
                 // --- 2. Assigned Room Info (NEW) ---
@@ -2135,8 +2300,10 @@
 
                 // --- 3. Action Buttons Logic (UPDATED) ---
 
-                // A. Add 'Assign Room' button if NOT rejected
-                if (status !== 'Rejected') {
+                // --- 3. Action Buttons Logic (UPDATED) ---
+
+                // A. Add 'Assign Room' button if NOT rejected and NOT cancellation requested
+                if (status !== 'Rejected' && status !== 'Cancellation Requested') {
                     actionButtons += `
                         <button class="btn btn-outline btn-sm" style="width:100%; margin-top:10px; border-color:var(--primary);" onclick="openAssignRoomModal('${r._id}')">
                             <i class="fas fa-key"></i> Assign Room
@@ -2150,6 +2317,12 @@
                         <div style="display:flex; gap:5px; margin-top:10px;">
                             <button class="btn btn-success btn-sm" style="flex:1" onclick="adminUpdateStatus('${r._id}', 'Confirmed')">Accept</button>
                             <button class="btn btn-danger btn-sm" style="flex:1" onclick="adminUpdateStatus('${r._id}', 'Rejected')">Reject</button>
+                        </div>`;
+                } else if (status === 'Cancellation Requested') {
+                    actionButtons += `
+                        <div style="display:flex; gap:5px; margin-top:10px;">
+                            <button class="btn btn-danger btn-sm" style="flex:1" onclick="approveCancellation('${r._id}')">Approve Cancel</button>
+                            <button class="btn btn-success btn-sm" style="flex:1" onclick="adminUpdateStatus('${r._id}', 'Confirmed')">Keep Reg</button>
                         </div>`;
                 } else {
                     // Delete button for Confirmed/Rejected
@@ -2189,6 +2362,14 @@
                 body: JSON.stringify({ status: newStatus })
             });
             loadRegistrations(); // Refresh list
+        }
+
+        // NEW FUNCTION: Handle Admin Approval of Cancellations
+        async function approveCancellation(id) {
+            if (confirm("Are you sure you want to approve this cancellation? The registration will be permanently deleted.")) {
+                await authFetch(`${API_URL}/registrations/${id}`, { method: 'DELETE' });
+                loadRegistrations(); // Refresh list
+            }
         }
 
         // --- ROOM MANAGEMENT FUNCTIONS ---
@@ -2386,7 +2567,8 @@
                         t === 'techniques' ? 'admin-tech-list' :
                             t === 'insights' ? 'admin-insight-list' :
                                 t === 'recordings' ? 'admin-rec-list' :
-                                    t === 'glimpses' ? 'admin-glimpse-list' : 'admin-hero-list'
+                                    t === 'events' ? 'admin-events-list' :
+                                        t === 'glimpses' ? 'admin-glimpse-list' : 'admin-hero-list'
             );
 
             // Clear previous content
@@ -2418,6 +2600,22 @@
                     </div>`;
                 }
 
+                if (t === 'events') {
+                    return `
+                    <div class="admin-card list-item" style="display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                        <div>
+                            <h4 style="font-size:1.1rem; margin-bottom:5px; color:var(--primary);">${item.name || 'Untitled Event'}</h4>
+                            <p style="font-size:0.85rem; color:#666; margin-bottom:5px;"><strong>Date:</strong> ${item.from} to ${item.to}</p>
+                            <p style="font-size:0.85rem; color:#666; margin-bottom:5px;"><strong>Location:</strong> ${item.location}</p>
+                            <p style="font-size:0.85rem; color:#666; margin-bottom:10px;"><strong>Organizer:</strong> ${item.organizer}</p>
+                            <p style="font-size:0.85rem; color:#444;">${item.desc ? item.desc.substring(0, 60) + '...' : ''}</p>
+                        </div>
+                        <div style="margin-top:15px;">
+                            <button class="btn btn-danger btn-sm" style="width:100%" onclick="del('${apiEndpoint}','${item._id}')">Delete</button>
+                        </div>
+                    </div>`;
+                }
+
                 // Standard Card for Techniques, Sannadhi, Insights, Movements
                 return `
                 <div class="admin-card list-item" style="display:flex; flex-direction:column; justify-content:space-between; height:100%;">
@@ -2443,6 +2641,32 @@
             // Task 6: Reset Form
             document.getElementById('san-title').value = ''; document.getElementById('san-desc').value = ''; document.getElementById('san-img').value = '';
             loadGenericAdmin('sannadhi');
+        }
+
+        // ADD THIS FUNCTION
+        async function addEvent() {
+            const body = {
+                name: document.getElementById('new-evt-name').value,
+                from: document.getElementById('new-evt-from').value,
+                to: document.getElementById('new-evt-to').value,
+                location: document.getElementById('new-evt-loc').value,
+                organizer: document.getElementById('new-evt-org').value,
+                desc: document.getElementById('new-evt-desc').value
+            };
+            if (!body.name || !body.from) return alert("Event Name and From Date are required");
+
+            await authFetch(`${API_URL}/events`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            alert("Event Added Successfully");
+
+            // Reset Form
+            document.getElementById('new-evt-name').value = '';
+            document.getElementById('new-evt-from').value = '';
+            document.getElementById('new-evt-to').value = '';
+            document.getElementById('new-evt-loc').value = '';
+            document.getElementById('new-evt-org').value = '';
+            document.getElementById('new-evt-desc').value = '';
+
+            loadGenericAdmin('events');
         }
 
         async function addMovement() {
@@ -2748,6 +2972,79 @@
                 statusText.style.color = "#8e44ad";
             }
         }
+
+        // ==========================================
+        // COMPACT VOICE CONFIRMATION LOGIC
+        // ==========================================
+        function listenForConfirmation() {
+            const statusEl = document.getElementById('voice-confirm-status');
+            const btnEl = document.getElementById('voice-confirm-btn');
+            const inputEl = document.getElementById('cr-confirm');
+
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRec) {
+                statusEl.innerText = "Voice not supported. Type manually.";
+                statusEl.style.color = "red";
+                return;
+            }
+
+            const recognition = new SpeechRec();
+            recognition.lang = 'en-IN';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            // Simple listening state update
+            statusEl.innerText = "Listening...";
+            statusEl.style.color = "var(--primary)";
+            btnEl.style.background = "#de3030";
+            btnEl.innerHTML = '<i class="fas fa-microphone fa-beat"></i>';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+
+                // Flexible check for phrases including "jai" or "osho"
+                if (transcript.includes("jai") || transcript.includes("jay") || transcript.includes("osho")) {
+                    statusEl.innerText = "Confirmed! Registering...";
+                    statusEl.style.color = "green";
+                    inputEl.value = "JAI OSHO"; // Auto-fills the box
+
+                    btnEl.style.background = "#28a745";
+                    btnEl.innerHTML = '<i class="fas fa-check"></i>';
+
+                    // AUTO-SUBMIT THE FORM AFTER A TINY DELAY
+                    setTimeout(() => {
+                        submitCampReg();
+                    }, 500);
+
+                } else {
+                    statusEl.innerText = `Try again. Heard: "${transcript}"`;
+                    statusEl.style.color = "red";
+                    resetMicUI(btnEl);
+                }
+            };
+
+            recognition.onerror = () => {
+                statusEl.innerText = "Mic error. Try again.";
+                statusEl.style.color = "red";
+                resetMicUI(btnEl);
+            };
+
+            recognition.onend = () => {
+                if (statusEl.innerText === "Listening...") {
+                    statusEl.innerText = "Timed out.";
+                    statusEl.style.color = "#7f8c8d";
+                    resetMicUI(btnEl);
+                }
+            };
+
+            recognition.start();
+        }
+
+        function resetMicUI(btn) {
+            btn.style.background = "var(--primary)";
+            btn.innerHTML = '<i class="fas fa-microphone"></i>';
+        }
+
 
 
         // --- AUTO LOGOUT ON INACTIVITY ---
