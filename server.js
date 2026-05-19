@@ -42,6 +42,7 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "https://via.placeholder.com", "https://images.unsplash.com"],
             connectSrc: ["'self'", "https://cdnjs.cloudflare.com"],
             mediaSrc: ["'self'", "blob:"],
+            connectSrc: ["'self'", "https://osho-sannadhi-2hvr.onrender.com", "http://localhost:3000", "wss://*"],
             frameSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
         },
     },
